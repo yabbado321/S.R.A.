@@ -4,106 +4,53 @@ import pandas as pd
 import plotly.graph_objs as go
 import numpy_financial as npf
 from fpdf import FPDF
+st.set_page_config(page_title="🏡 Smart Rental Analyzer", layout="wide")
 
-
-
-# Inject custom CSS for cards, spacing, typography, and footer
 custom_css = """
 <style>
 :root {
-  /* Typography sizes */
-  --fs-xxl: 2rem;    /* 32px */
-  --fs-xl: 1.5rem;   /* 24px */
-  --fs-md: 1.125rem; /* 18px */
-  --fs-sm: 0.875rem; /* 14px */
+  /* ── Core Palette ─────────────────────────────────────────────── */
+  --color-bg: #1e1e1e;
+  --color-surface: #2a2a2a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #cccccc;
+  --color-accent: #4caf50;      /* green track */
+  --color-info: #9c27b0;        /* purple thumb */
 
-  /* Spacing scale (8px base) */
-  --space-1: 0.5rem;  /* 4px */
-  --space-2: 1rem;    /* 8px */
-  --space-3: 1.5rem;  /* 12px */
-  --space-4: 2rem;    /* 16px */
-  --space-5: 3rem;    /* 24px */
-
-  /* Color palette */
-  --color-bg: #f9f9f9;        /* Light neutral background */
-  --color-card-bg: #ffffff;   /* Card background */
-  --color-text: #1a1a1a;      /* Main text */
-  --color-mute: #555555;      /* Secondary text */
-  --color-accent: #0066cc;    /* Primary accent */
+  /* ── Slider Overrides ───────────────────────────────────────── */
+  --color-slider-track: var(--color-accent);
+  --color-slider-thumb: var(--color-info);
 }
 
-/* Global body background & text color */
-body, .main {
-  background-color: var(--color-bg);
-  color: var(--color-text);
+/* ── Slider Styling ──────────────────────────────────────────────── */
+/* Ensure this runs before any sliders */
+[data-testid="stSlider"] .rc-slider-rail {
+  background-color: var(--color-slider-track)20 !important; /* 12% opacity rail */
 }
-
-/* Card style */
-.card {
-  background: var(--color-card-bg);
-  border-radius: 12px;
-  padding: var(--space-4);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  margin-bottom: var(--space-5);
+[data-testid="stSlider"] .rc-slider-track {
+  background-color: var(--color-slider-track) !important;
 }
-
-/* Global spacing for Streamlit elements */
-.element-container {
-  margin-bottom: var(--space-4);
-}
-
-/* Heading styles */
-h1 {
-  font-size: var(--fs-xxl);
-  margin-bottom: var(--space-3);
-}
-h2 {
-  font-size: var(--fs-xl);
-  margin-bottom: var(--space-2);
-}
-h3 {
-  font-size: var(--fs-md);
-  margin-bottom: var(--space-2);
-}
-p, label, .help {
-  font-size: var(--fs-sm);
-  line-height: 1.6;
-  color: var(--color-mute);
-}
-
-/* Button and link styles */
-a, .stButton>button {
-  background-color: var(--color-accent) !important;
-  color: #fff !important;
-}
-
-/* Footer */
-.footer {
-  text-align: center;
-  color: var(--color-mute);
-  margin-top: var(--space-5);
-  padding-top: var(--space-2);
-}
-
-/* Responsive columns: stack vertically on small screens */
-@media (max-width: 768px) {
-  [class*="stColumns"] > div {
-    width: 100% !important;
-    display: block !important;
-    margin-bottom: var(--space-4) !important;
-  }
+[data-testid="stSlider"] .rc-slider-handle {
+  background-color: var(--color-slider-thumb) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 3px var(--color-slider-thumb)40 !important; /* 25% opacity glow */
 }
 </style>
 """
+
 st.markdown(custom_css, unsafe_allow_html=True)
 
+
+
+
+# -------- Top Navigation --------
+st.markdown("<h1 style='text-align:center;'>🏡 Smart Rental Analyzer</h1>", unsafe_allow_html=True)
 
 
 # -------- Configuration & Styles --------
 left, center, right = st.columns([2.25, 2, 0.8])
 with center:
     st.image("logo.png", width=160)
-st.set_page_config(page_title="🏡 Smart Rental Analyzer", layout="wide")
 st.markdown("<p style='text-align:center; font-size:14px; color:gray;'>Created by Jacob Klingman</p>", unsafe_allow_html=True)
 
 st.markdown("### 📬 Contact Me")
@@ -112,10 +59,6 @@ st.markdown("""
 """)
 
 
-
-
-# -------- Top Navigation --------
-st.markdown("<h1 style='text-align:center;'>🏡 Smart Rental Analyzer</h1>", unsafe_allow_html=True)
 page = st.selectbox(
     "Navigate to:",
     [
