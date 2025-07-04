@@ -6,6 +6,68 @@ import numpy_financial as npf
 from fpdf import FPDF
 st.set_page_config(page_title="🏡 Smart Rental Analyzer", layout="wide")
 
+# ------------------------- CUSTOM CSS + TOOLTIP SYSTEM -------------------------
+custom_css = """
+<style>
+:root {
+  --color-bg: #1e1e1e;
+  --color-surface: #2a2a2a;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #cccccc;
+  --color-accent: #4caf50;
+  --color-info: #9c27b0;
+  --color-slider-track: var(--color-accent);
+  --color-slider-thumb: var(--color-info);
+}
+
+[data-testid="stSlider"] .rc-slider-rail {
+  background-color: var(--color-slider-track)20 !important;
+}
+[data-testid="stSlider"] .rc-slider-track {
+  background-color: var(--color-slider-track) !important;
+}
+[data-testid="stSlider"] .rc-slider-handle {
+  background-color: var(--color-slider-thumb) !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 0 3px var(--color-slider-thumb)40 !important;
+}
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  border-bottom: 1px dotted white;
+}
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 240px;
+  background-color: #555;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 6px 10px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%; 
+  left: 50%;
+  margin-left: -120px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+}
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+</style>
+"""
+st.markdown(custom_css, unsafe_allow_html=True)
+
+# Reusable tooltip function
+def tooltip(label, tip):
+    return f"**{label}** <span class='tooltip'>[?]<span class='tooltiptext'>{tip}</span></span>"
+
+
 custom_css = """
 <style>
 :root {
@@ -103,12 +165,12 @@ if page == "🏠 Home":
             'Mobile Friendly',
             'AI Insights'
         ],
-        'S.R.A': ['✅','✅','✅','✅','✅','✅','✅','✅','✅','🚧','🚧'],
+        'S.R.A': ['✅','✅','✅','✅','✅','✅','✅','✅','✅','✅','🚧'],
         'BiggerPockets': ['✅','✅','❌','❌','❌','❌','❌','✅','❌','✅','❌'],
         'Stessa':          ['❌','✅','❌','❌','❌','❌','❌','✅','❌','✅','❌'],
         'Roofstock':       ['✅','✅','❌','❌','❌','❌','❌','✅','✅','✅','❌'],
         'DealCheck':       ['✅','✅','❌','❌','✅','❌','❌','✅','❌','🚧','❌'],
-        'Mashvisor':       ['✅','✅','❌','❌','❌','✅','❌','✅','❌','✅','❌✗'],
+        'Mashvisor':       ['✅','✅','❌','❌','❌','✅','❌','✅','❌','✅','❌'],
         'Rentometer':      ['✅','❌','❌','❌','❌','❌','❌','❌','❌','✅','❌'],
         'Zilculator':      ['✅','✅','✅','❌','✅','❌','❌','✅','❌','❌','❌']
     }
@@ -133,6 +195,17 @@ if page == "🏠 Home":
 elif page == "📊 Quick Deal Analyzer":
     st.header("📊 Quick Deal Analyzer")
     st.markdown("Evaluate your deal with just a few inputs and see your score on a 0–100 scale.")
+    with st.expander("📘 What do these terms mean?"):
+     col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Cap Rate** — Net Operating Income (NOI) ÷ Purchase Price")
+        st.markdown("**Monthly Cash Flow** — Rent - Expenses")
+    with col2:
+        st.markdown("**ROI** — Annual Cash Flow ÷ Down Payment")
+        st.markdown("**Equity** — Value - Loan Balance")
+
+
+
 
     col1, col2 = st.columns(2)
     with col1:
@@ -193,10 +266,22 @@ elif page == "📊 Quick Deal Analyzer":
             ]
         }
         st.table(pd.DataFrame(score_data))
+ 
+
 
 # -------- Break-Even Calculator --------
 elif page == "💡 Break-Even Calculator":
     st.header("💡 Break-Even Calculator")
+    with st.expander("📘 What do these terms mean?"):
+     col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Break-Even Rent** — Minimum rent needed to cover mortgage + costs.")
+        st.markdown("**Vacancy Rate** — Expected % of time property is empty.")
+    with col2:
+        st.markdown("**Maintenance %** — % of rent reserved for repairs.")
+        st.markdown("**Management %** — % of rent paid to property manager.")
+
+    
     st.markdown("Calculate the rent you need to break even after covering mortgage and expenses.")
 
     col1, col2 = st.columns(2)
@@ -263,6 +348,15 @@ elif page == "💡 Break-Even Calculator":
 # -------- ROI & Projections --------
 elif page == "📘 ROI & Projections":
     st.header("📘 ROI & Multi-Year Projections")
+    with st.expander("📘 What do these terms mean?"):
+     col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Equity** — Value of property minus loan balance.")
+        st.markdown("**Rent Growth** — Annual increase in rent income.")
+    with col2:
+        st.markdown("**Expense Growth** — Annual increase in costs.")
+        st.markdown("**Appreciation** — Property value growth per year.")
+
     st.markdown("Forecast your returns over time with appreciation, rent growth, and debt paydown.")
 
     col1, col2 = st.columns(2)
@@ -388,6 +482,9 @@ elif page == "💎 Property Comparison (Pro)":
             pdf.multi_cell(0, 8, line)
         b = pdf.output(dest='S').encode('latin1')
         st.download_button("⬇️ Download PDF", data=b, file_name="comparison.pdf", mime="application/pdf")
+
+
+
 # -------- Advanced Analytics (Pro) --------
 elif page == "🧪 Advanced Analytics (Pro)":
     st.header("🧪 Advanced Analytics & Forecasting")
@@ -547,7 +644,9 @@ elif page == "🏚 Rehab & Refi (Pro)":
         post_rehab_roi = ((equity_after - total_invested) / total_invested) * 100 if total_invested else 0
 
         st.metric("💸 Total Invested", f"${total_invested:,.0f}")
+        st.markdown(tooltip("Equity After Rehab", "After-Repair Value minus Loan Balance."), unsafe_allow_html=True)
         st.metric("🏡 Equity After Rehab", f"${equity_after:,.0f}")
+        st.markdown(tooltip("Post-Rehab ROI", "(Equity - Total Invested) ÷ Total Invested × 100."), unsafe_allow_html=True)
         st.metric("📈 Post-Rehab ROI", f"{post_rehab_roi:.1f}%")
 
     # 🔄 Refinance Scenario Explorer
