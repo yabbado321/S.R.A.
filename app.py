@@ -212,7 +212,6 @@ elif page == "📊 Quick Deal Analyzer":
             "score": score,
         }
 
-    # Show results if analyzed
     if st.session_state.get("analyzed"):
         price = st.session_state.price
         rent = st.session_state.rent
@@ -228,6 +227,35 @@ elif page == "📊 Quick Deal Analyzer":
         c3.metric("Cap Rate", f"{original['cap']:.1f}%")
         c4.metric("Score", f"{original['score']:.1f}")
 
+        # 📊 Score Breakdown Table
+        st.subheader("📊 Deal Score Breakdown")
+        roi_contrib = original['roi'] * 0.4
+        cf_contrib = (original['cf'] * 0.2 / 1000)
+        cap_contrib = original['cap'] * 0.4
+        breakdown = {
+            "Factor": ["ROI", "Cap Rate", "Annual Cash Flow"],
+            "Value": [f"{original['roi']:.1f}%", f"{original['cap']:.1f}%", f"${original['cf']:,.0f}"],
+            "Weight": ["40%", "40%", "20%"],
+            "Contribution": [f"{roi_contrib:.1f}", f"{cap_contrib:.1f}", f"{cf_contrib:.1f}"]
+        }
+        st.table(breakdown)
+
+        # 💡 Suggestions
+        st.subheader("💡 Suggestions to Improve Score")
+        suggestions = []
+        if original['roi'] < 10:
+            suggestions.append("• Increase ROI: Try reducing your down payment or increasing rent.")
+        if original['cap'] < 5:
+            suggestions.append("• Improve Cap Rate: Lower expenses or negotiate a better purchase price.")
+        if original['cf'] < 0:
+            suggestions.append("• Cash flow is negative: Consider raising rent or cutting operating costs.")
+        if not suggestions:
+            suggestions.append("• Great job! This deal scores well under current assumptions.")
+
+        for tip in suggestions:
+            st.markdown(tip)
+
+        # Sensitivity Sliders
         st.markdown("### 🧮 Quick Sensitivity Adjustment")
         rent_min = int(rent * 0.8)
         rent_max = int(rent * 1.2)
@@ -363,54 +391,61 @@ elif page == "📘 ROI & Projections":
 
 #-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # ──────────────────────────── DEAL HISTORY ────────────────────────────
-
-# ──────────────────────────── DEAL HISTORY ────────────────────────────
 elif page == "📂 Deal History":
-    import os, json, tempfile, zipfile, re
+    import os, json, tempfile, zipfile
     from fpdf import FPDF
 
-    def latin1(txt):
-        return str(txt).encode("latin-1", "replace").decode("latin-1")
-
+    # ── PDF Helper ─────────────────────────────────────────────────────
     def generate_pdf(deal, dest):
+        """
+        Export a one‑page PDF snapshot of `deal`.
+
+        • If `dest` is a directory path (str) ➜ returns full file path.  
+        • If `dest` is an existing FPDF object ➜ appends a new page (returns None).
+        """
         def write_deal(pdf_obj):
             pdf_obj.set_font("Arial", 'B', 16)
-            pdf_obj.cell(0, 10, latin1(f"Deal Snapshot – {deal.get('title', '-')}"), ln=True)
+            pdf_obj.cell(0, 10, f"Deal Snapshot – {deal.get('title', '-')}", ln=True)
             pdf_obj.ln(4)
             pdf_obj.set_font("Arial", '', 11)
+
             def row(label, value):
-                pdf_obj.cell(60, 8, latin1(f"{label}:"), border=0)
-                pdf_obj.cell(0, 8, latin1(value), ln=True)
-            row("Type", deal.get("type", "-"))
-            row("Purchase Price", f"${deal.get('price', 0):,}" if deal.get("price") else "-")
-            row("Monthly Rent", f"${deal.get('rent', 0):,}" if deal.get("rent") else "-")
-            row("Monthly Expenses", f"${deal.get('expenses', 0):,}" if deal.get("expenses") else "-")
-            row("Cash Flow", f"${float(deal.get('cf', 0)):,.0f}")
-            row("ROI", f"{float(deal.get('roi', 0)):.1f}%")
-            row("Cap Rate", f"{float(deal.get('cap', 0)):.1f}%")
-            row("Score", f"{float(deal.get('score', 0)):.1f}")
+                pdf_obj.cell(60, 8, f"{label}:", border=0)
+                pdf_obj.cell(0, 8, str(value), ln=True)
+
+            row("Type",             deal.get("type", "-"))
+            row("Purchase Price",   f"${deal.get('price', 0):,}"           if deal.get("price") else "-")
+            row("Monthly Rent",     f"${deal.get('rent', 0):,}"            if deal.get("rent")  else "-")
+            row("Monthly Expenses", f"${deal.get('expenses', 0):,}"        if deal.get("expenses") else "-")
+            row("Cash Flow",        f"${float(deal.get('cf', 0)):,.0f}")
+            row("ROI",              f"{float(deal.get('roi', 0)):.1f}%")
+            row("Cap Rate",         f"{float(deal.get('cap', 0)):.1f}%")
+            row("Score",            f"{float(deal.get('score', 0)):.1f}")
             notes = deal.get("notes", "")
             if notes:
                 pdf_obj.ln(2)
-                pdf_obj.multi_cell(0, 8, latin1(f"Notes: {notes}"))
+                pdf_obj.multi_cell(0, 8, f"Notes: {notes}")
 
+        # ---- export to file path ----
         if isinstance(dest, str):
             pdf = FPDF()
             pdf.add_page()
             write_deal(pdf)
-            safe_name = re.sub(r"[^\w\-]", "_", deal.get("title", "deal"))
-            fname = os.path.join(dest, f"{safe_name}.pdf")
+            fname = os.path.join(dest, f"{deal.get('title','deal').replace(' ', '_')}.pdf")
             pdf.output(fname)
             return fname
 
+        # ---- append to existing FPDF ----
         if isinstance(dest, FPDF):
             dest.add_page()
             write_deal(dest)
 
+    # ── Layout / Controls ──────────────────────────────────────────────
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("📂 Deal History & Snapshots")
     st.caption("All properties you've analyzed and saved.")
 
+    # --- Clear all -----------------------------------------------------
     if st.button("🧹 Clear All Deals"):
         st.session_state["deals"] = []
         with open("deals.json", "w") as f:
@@ -418,14 +453,17 @@ elif page == "📂 Deal History":
         st.success("✅ All saved deals have been cleared.")
         st.rerun()
 
+    # --- No deals yet --------------------------------------------------
     if "deals" not in st.session_state or not st.session_state["deals"]:
         st.info("No deals saved yet.")
         st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
 
-    all_tags = sorted({t for d in st.session_state["deals"] for t in d.get("tags", [])})
+    # --- Visibility filters (optional) --------------------------------
+    all_tags     = sorted({t for d in st.session_state["deals"] for t in d.get("tags", [])})
     all_statuses = sorted({d.get("status", "") for d in st.session_state["deals"]})
-    vis_tags = st.multiselect("Filter visible deals by Tags", all_tags, default=all_tags or [])
+
+    vis_tags     = st.multiselect("Filter visible deals by Tags",   all_tags,     default=all_tags or [])
     vis_statuses = st.multiselect("Filter visible deals by Status", all_statuses, default=all_statuses or [])
 
     visible_deals = [
@@ -439,27 +477,30 @@ elif page == "📂 Deal History":
         st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
 
-    export_opts = [f"{d['title']} ({d.get('type','-')})" for d in st.session_state["deals"]]
-    selected_indices = st.multiselect("🗂 Select deals to export", options=list(range(len(export_opts))), format_func=lambda i: export_opts[i])
+    # --- Export picker -------------------------------------------------
+    export_opts     = [f"{d['title']} ({d.get('type','-')})" for d in st.session_state["deals"]]
+    selected_indices = st.multiselect("🗂 Select deals to export", options=list(range(len(export_opts))),
+                                      format_func=lambda i: export_opts[i])
 
+    # --- Deal cards (filtered list) -----------------------------------
     deal_types = sorted({d.get("type", "Other") for d in visible_deals})
     for dtype in deal_types:
         st.subheader(f"📂 {dtype}")
-        for idx, deal in enumerate(visible_deals):
-            if deal.get("type") != dtype:
-                continue
-
+        for deal in visible_deals:
+            if deal.get("type") != dtype: continue
             col1, col2 = st.columns([5, 1])
+
+            # ---- card ----
             with col1:
                 score_pct = float(deal.get("score", 0))
                 st.markdown(f"""
                 <div style='background:#1e1e1e;border-radius:12px;padding:1rem;margin-bottom:0.5rem;
                             box-shadow:0 2px 6px rgba(0,0,0,0.4);'>
-                    <div style='font-size:16px;font-weight:600;margin-bottom:0.5rem;color:#fff;'>🏠 {latin1(deal['title'])}</div>
+                    <div style='font-size:16px;font-weight:600;margin-bottom:0.5rem;color:#fff;'>🏠 {deal['title']}</div>
                     <div style='color:#ccc;margin-bottom:0.25rem;'>
                         ROI: <b>{deal.get('roi','-')}%</b> | Cap Rate: <b>{deal.get('cap','-')}%</b> |
                         Cash Flow: <b>${float(deal.get('cf',0)):,.0f}</b> |
-                        Tags: <b>{latin1(', '.join(deal.get('tags', [])) or '—')}</b>
+                        Tags: <b>{', '.join(deal.get('tags', [])) or '—'}</b>
                     </div>
                     <div style='margin-top:0.5rem;'>
                         <span style='color:#bbb;font-size:13px;'>Deal Score: {score_pct:.0f}%</span>
@@ -471,43 +512,34 @@ elif page == "📂 Deal History":
                 </div>
                 """, unsafe_allow_html=True)
 
-                with st.expander(f"✏️ Notes, Tags & Status for {deal['title']}", expanded=False):
-                    new_note = st.text_area("Edit Notes", value=deal.get("notes", ""), key=f"note_input_{idx}")
-                    tag_options = ["🔥 Hot", "🛠 Rehab", "📈 Appreciation", "💰 Cashflow", "🧊 Risky"]
-                    new_tags = st.multiselect("Assign Tags", tag_options, default=deal.get("tags", []), key=f"tag_input_{idx}")
-                    status_options = ["🔍 Reviewing", "🚗 Walkthrough Scheduled", "📞 Agent Contacted", "📩 Offer Sent", "✅ Under Contract"]
-                    new_status = st.selectbox("Deal Status", status_options, index=status_options.index(deal.get("status", "🔍 Reviewing")), key=f"status_select_{idx}")
-
-                    if st.button("💾 Save Notes, Tags & Status", key=f"save_note_{idx}"):
-                        index_in_all = st.session_state["deals"].index(deal)
-                        st.session_state["deals"][index_in_all]["notes"] = new_note
-                        st.session_state["deals"][index_in_all]["tags"] = new_tags
-                        st.session_state["deals"][index_in_all]["status"] = new_status
-                        with open("deals.json", "w") as f:
-                            json.dump(st.session_state["deals"], f, indent=2)
-                        st.success("✅ Notes, tags, and status saved.")
-                        st.rerun()
-
+            # ---- delete button ----
             with col2:
-                if st.button("🗑 Delete", key=f"del_{idx}_{deal['title']}"):
+                if st.button("🗑 Delete", key=f"del_{deal['title']}"):
                     st.session_state["deals"].remove(deal)
                     with open("deals.json", "w") as f:
                         json.dump(st.session_state["deals"], f, indent=2)
                     st.rerun()
 
+    # --- Export buttons (if any selected) -----------------------------
     if selected_indices:
         col_a, col_b = st.columns(2)
 
+        # ZIP of individual PDFs
         with col_a:
             with tempfile.TemporaryDirectory() as tmpdir:
-                file_paths = [generate_pdf(st.session_state["deals"][i], tmpdir) for i in selected_indices]
+                file_paths = [generate_pdf(st.session_state["deals"][i], tmpdir)
+                              for i in selected_indices]
                 zip_path = os.path.join(tmpdir, "selected_deals.zip")
                 with zipfile.ZipFile(zip_path, "w") as zf:
                     for p in file_paths:
                         zf.write(p, arcname=os.path.basename(p))
                 with open(zip_path, "rb") as zf:
-                    st.download_button("⬇️ Download ZIP of Selected Deals", data=zf.read(), file_name="selected_deals.zip", mime="application/zip")
+                    st.download_button("⬇️ Download ZIP of Selected Deals",
+                                       data=zf.read(),
+                                       file_name="selected_deals.zip",
+                                       mime="application/zip")
 
+        # Combined multi‑page PDF
         with col_b:
             pdf = FPDF()
             for i in selected_indices:
@@ -515,10 +547,12 @@ elif page == "📂 Deal History":
             combined_path = "combined_deals.pdf"
             pdf.output(combined_path)
             with open(combined_path, "rb") as f:
-                st.download_button("📄 Download All‑in‑One PDF", data=f.read(), file_name=combined_path, mime="application/pdf")
+                st.download_button("📄 Download All‑in‑One PDF",
+                                   data=f.read(),
+                                   file_name=combined_path,
+                                   mime="application/pdf")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 # ───────────────────────────────────────────────────────────────────────
 
 
