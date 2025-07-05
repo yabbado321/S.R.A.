@@ -199,14 +199,18 @@ elif page == "📊 Quick Deal Analyzer":
         st.session_state.expenses = expenses
         st.session_state.down_pct = down_pct
 
-        annual_cash_flow = (rent - expenses) * 12
+        annual_cf = (rent - expenses) * 12
         total_investment = price * down_pct / 100
-        roi = (annual_cash_flow / total_investment) * 100 if total_investment else 0
+        roi = (annual_cf / total_investment) * 100 if total_investment else 0
         cap_rate = ((rent - expenses) * 12 / price) * 100 if price else 0
-        score = (roi * 0.4) + (annual_cash_flow * 0.2 / 1000) + (cap_rate * 0.4)
+
+        roi_score = min(roi, 20) / 20 * 60  # Max 60 points
+        cap_score = min(cap_rate, 10) / 10 * 30  # Max 30 points
+        cf_score = 10 if annual_cf > 0 else -10
+        score = max(0, min(roi_score + cap_score + cf_score, 100))
 
         st.session_state.results = {
-            "cf": annual_cash_flow,
+            "cf": annual_cf,
             "roi": roi,
             "cap": cap_rate,
             "score": score,
@@ -217,67 +221,67 @@ elif page == "📊 Quick Deal Analyzer":
         rent = st.session_state.rent
         expenses = st.session_state.expenses
         down_pct = st.session_state.down_pct
-        total_investment = price * down_pct / 100
-        original = st.session_state.results
+        total_inv = price * down_pct / 100
+        res = st.session_state.results
 
         st.markdown("### 📊 Deal Snapshot")
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Annual Cash Flow", f"${original['cf']:,.0f}")
-        c2.metric("ROI", f"{original['roi']:.1f}%")
-        c3.metric("Cap Rate", f"{original['cap']:.1f}%")
-        c4.metric("Score", f"{original['score']:.1f}")
+        c1.metric("Annual Cash Flow", f"${res['cf']:,.0f}")
+        c2.metric("ROI", f"{res['roi']:.1f}%")
+        c3.metric("Cap Rate", f"{res['cap']:.1f}%")
+        c4.metric("Score", f"{res['score']:.1f}/100")
 
-        # 📊 Score Breakdown Table
         st.subheader("📊 Deal Score Breakdown")
-        roi_contrib = original['roi'] * 0.4
-        cf_contrib = (original['cf'] * 0.2 / 1000)
-        cap_contrib = original['cap'] * 0.4
         breakdown = {
-            "Factor": ["ROI", "Cap Rate", "Annual Cash Flow"],
-            "Value": [f"{original['roi']:.1f}%", f"{original['cap']:.1f}%", f"${original['cf']:,.0f}"],
-            "Weight": ["40%", "40%", "20%"],
-            "Contribution": [f"{roi_contrib:.1f}", f"{cap_contrib:.1f}", f"{cf_contrib:.1f}"]
+            "Factor": ["ROI (max 20%)", "Cap Rate (max 10%)", "Cash Flow Sign"],
+            "Value": [f"{res['roi']:.1f}%", f"{res['cap']:.1f}%", "Positive" if res['cf'] > 0 else "Negative"],
+            "Weight": ["60%", "30%", "±10"],
+            "Contribution": [f"{min(res['roi'], 20)/20*60:.1f}",
+                             f"{min(res['cap'], 10)/10*30:.1f}",
+                             f"{10 if res['cf'] > 0 else -10}"]
         }
         st.table(breakdown)
 
-        # 💡 Suggestions
         st.subheader("💡 Suggestions to Improve Score")
-        suggestions = []
-        if original['roi'] < 10:
-            suggestions.append("• Increase ROI: Try reducing your down payment or increasing rent.")
-        if original['cap'] < 5:
-            suggestions.append("• Improve Cap Rate: Lower expenses or negotiate a better purchase price.")
-        if original['cf'] < 0:
-            suggestions.append("• Cash flow is negative: Consider raising rent or cutting operating costs.")
-        if not suggestions:
-            suggestions.append("• Great job! This deal scores well under current assumptions.")
+        tips = []
+        if res['roi'] < 10:
+            tips.append("• Increase ROI: Try reducing your down payment or increasing rent.")
+        if res['cap'] < 5:
+            tips.append("• Improve Cap Rate: Lower expenses or negotiate a better purchase price.")
+        if res['cf'] < 0:
+            tips.append("• Cash flow is negative: Consider raising rent or cutting operating costs.")
+        if res['score'] >= 85:
+            summary = "✅ Great job! This deal scores very well under current assumptions."
+        elif res['score'] >= 70:
+            summary = "👍 Solid deal — there’s room to optimize further."
+        elif res['score'] >= 50:
+            summary = "⚠️ Fair deal — consider improving key metrics below."
+        else:
+            summary = "🚨 Risky deal — low score indicates poor returns or cash flow."
+        st.markdown(summary)
+        for t in tips:
+            st.markdown(t)
 
-        for tip in suggestions:
-            st.markdown(tip)
-
-        # Sensitivity Sliders
         st.markdown("### 🧮 Quick Sensitivity Adjustment")
-        rent_min = int(rent * 0.8)
-        rent_max = int(rent * 1.2)
-        exp_min = int(expenses * 0.8)
-        exp_max = int(expenses * 1.2)
-
+        rent_min, rent_max = int(rent * 0.8), int(rent * 1.2)
+        exp_min, exp_max = int(expenses * 0.8), int(expenses * 1.2)
         col5, col6 = st.columns(2)
         with col5:
-            adjusted_rent = st.slider("Adjusted Rent", rent_min, rent_max, rent, step=25, format="$%d")
+            adj_rent = st.slider("Adjusted Rent", rent_min, rent_max, rent, step=25, format="$%d")
         with col6:
-            adjusted_expenses = st.slider("Adjusted Expenses", exp_min, exp_max, expenses, step=25, format="$%d")
+            adj_exp = st.slider("Adjusted Expenses", exp_min, exp_max, expenses, step=25, format="$%d")
 
-        adj_cf = (adjusted_rent - adjusted_expenses) * 12
-        adj_roi = (adj_cf / total_investment) * 100 if total_investment else 0
-        adj_cap = ((adjusted_rent - adjusted_expenses) * 12 / price) * 100 if price else 0
-        adj_score = (adj_roi * 0.4) + (adj_cf * 0.2 / 1000) + (adj_cap * 0.4)
+        adj_cf = (adj_rent - adj_exp) * 12
+        adj_roi = (adj_cf / total_inv) * 100 if total_inv else 0
+        adj_cap = ((adj_rent - adj_exp) * 12 / price) * 100 if price else 0
+        adj_score = min(adj_roi, 20)/20*60 + min(adj_cap, 10)/10*30 + (10 if adj_cf > 0 else -10)
+        adj_score = max(0, min(adj_score, 100))
 
         d1, d2, d3, d4 = st.columns(4)
-        d1.metric("Cash Flow", f"${adj_cf:,.0f}", f"{adj_cf - original['cf']:+,.0f}")
-        d2.metric("ROI", f"{adj_roi:.1f}%", f"{adj_roi - original['roi']:+.1f}%")
-        d3.metric("Cap Rate", f"{adj_cap:.1f}%", f"{adj_cap - original['cap']:+.1f}%")
-        d4.metric("Score", f"{adj_score:.1f}", f"{adj_score - original['score']:+.1f}")
+        d1.metric("Cash Flow", f"${adj_cf:,.0f}", f"{adj_cf - res['cf']:+,.0f}")
+        d2.metric("ROI", f"{adj_roi:.1f}%", f"{adj_roi - res['roi']:+.1f}%")
+        d3.metric("Cap Rate", f"{adj_cap:.1f}%", f"{adj_cap - res['cap']:+.1f}%")
+        d4.metric("Score", f"{adj_score:.1f}", f"{adj_score - res['score']:+.1f}")
 
 
 # ─────────────────────────── BREAK-EVEN CALCULATOR ────────────────
