@@ -794,7 +794,7 @@ elif page == "🏘 Property Comparison":
 
 
 # ─────────────────────────── ADVANCED ANALYTICS ──────────────────
-elif page == "🧪 Advanced Analytics (Pro)":
+elif page == "🧪 Advanced Analytics":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🧪 Advanced Analytics & Forecasting (Pro)")
 
@@ -900,7 +900,7 @@ elif page == "🧪 Advanced Analytics (Pro)":
 
 
 # ─────────────────────────── REHAB & REFI ────────────────────────
-elif page == "🏚 Rehab & Refi (Pro)":
+elif page == "🏚 Rehab & Refi":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🏚 Renovation & Refinance Tools (Pro)")
     with st.expander("🛠️ Rehab ROI Calculator",expanded=True):
