@@ -6,6 +6,29 @@ import numpy_financial as npf
 from fpdf import FPDF
 import os, json
 
+
+import requests
+
+def get_location_info(address):
+    url = f"https://nominatim.openstreetmap.org/search"
+    params = {
+        "q": address,
+        "format": "json",
+        "addressdetails": 1,
+        "limit": 1
+    }
+    r = requests.get(url, params=params, headers={"User-Agent": "SmartRentalAnalyzer"})
+    if r.status_code == 200 and r.json():
+        data = r.json()[0]["address"]
+        return {
+            "zip": data.get("postcode", ""),
+            "city": data.get("city", data.get("town", "")),
+            "state": data.get("state", "")
+        }
+    return None
+
+
+
 # Load deals from file when app starts
 if "deals" not in st.session_state:
     if os.path.exists("deals.json"):
@@ -108,9 +131,9 @@ page = st.selectbox("Navigate to:", [
     "📘 ROI & Projections",
     "📂 Deal History",
     "🏘 Property Comparison",
-    "🧪 Advanced Analytics (Pro)",
-    "🏚 Rehab & Refi (Pro)",
-    "📊 Deal Summary Comparison",
+    "🧪 Advanced Analytics",
+    "📈 Monte Carlo Simulator",
+    "🏚 Rehab & Refi",
     "📖 Glossary"
 ])
 
@@ -149,7 +172,7 @@ if page == "🏠 Home":
     st.markdown("### 🆚 How We Stack Up Against Competitors")
     comp_data = {
         'Feature':[ 'Quick Deal Analyzer','ROI & Multi-Year Projections','Break-Even Calculator','Deal Score / Rating','Property Comparison','Advanced Analytics Charts','Rehab & Refi Tools','CSV Export','PDF Export','Mobile Friendly','AI Insights'],
-        'S.R.A':['✅','✅','✅','✅','✅','✅','✅','✅','✅','✅','🚧'],
+        'RentIntel':['✅','✅','✅','✅','✅','✅','✅','✅','✅','✅','🚧'],
         'BiggerPockets':['✅','✅','❌','❌','❌','❌','❌','✅','❌','✅','❌'],
         'Stessa':['❌','✅','❌','❌','❌','❌','❌','✅','❌','✅','❌'],
         'Roofstock':['✅','✅','❌','❌','❌','❌','❌','✅','✅','✅','❌'],
@@ -161,6 +184,7 @@ if page == "🏠 Home":
     styled = pd.DataFrame(comp_data).set_index('Feature')
     st.dataframe(styled, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ─────────────────────────── QUICK DEAL ANALYZER ───────────────────
 # 📊 QUICK DEAL ANALYZER TAB — CLEANED + DEAL SNAPSHOT INTEGRATED
@@ -330,7 +354,7 @@ elif page == "💡 Break-Even Calculator":
 
     c1,c2 = st.columns(2)
     with c1:
-        price = st.number_input("Purchase Price ($)",250000)
+        price = st.number_input("Purchase Price ($)", min_value=0, value=250000, step=1000)
         down_pct = st.slider("Down Payment (%)",0,100,20)
         int_rate = st.number_input("Loan Interest Rate (%)",6.5)
         term = st.selectbox("Loan Term (Years)",[15,30],index=1)
@@ -523,6 +547,145 @@ elif page == "📂 Deal History":
 
 # ───────────────────────────────────────────────────────────────────────
 
+elif page == "📈 Monte Carlo Simulator":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.header("📈 Monte Carlo ROI & IRR Simulation")
+
+    tab1, tab2 = st.tabs(["📊 Simulator", "ℹ️ How It Works"])
+
+    with tab2:
+        st.subheader("ℹ️ What Is a Monte Carlo Simulation?")
+        st.markdown("""
+Monte Carlo simulation is a risk analysis technique that models uncertain outcomes by simulating many possible scenarios.
+
+Instead of using fixed inputs (like "3% rent growth"), it randomly selects values within a range (e.g., 2%–5%) and runs hundreds or thousands of simulations.
+
+This helps answer questions like:
+- *What are the chances this deal earns more than 10% ROI?*
+- *How much could ROI or IRR vary in a bad vs good market?*
+
+---
+
+### 📈 Chart Interpretation
+
+**ROI Histogram**
+- Shows the distribution of total return over the holding period.
+- Example: If most ROI values are between 10%–15%, the investment is relatively stable.
+
+**IRR Histogram**
+- Shows the distribution of annualized returns across all simulations.
+- IRR accounts for time and compounding, so it's a stronger measure for comparing investments.
+
+---
+
+### 🧠 Terms Defined
+
+- **ROI (Return on Investment):**  
+  (Total Profit ÷ Down Payment) × 100  
+  Includes cash flow and equity from appreciation and loan paydown.
+
+- **IRR (Internal Rate of Return):**  
+  The annualized return over time, accounting for the timing of all cash flows (like yearly rent + resale proceeds).
+
+---
+
+This tool helps you **quantify uncertainty** and better understand how your assumptions impact outcomes.
+        """)
+
+    with tab1:
+        st.markdown("Run randomized simulations to estimate how your investment might perform under uncertain market conditions.")
+
+        # INPUTS
+        col1, col2 = st.columns(2)
+        with col1:
+            price = st.number_input("Purchase Price ($)", 250000)
+            down_pct = st.slider("Down Payment (%)", 0, 100, 20)
+            loan = price * (1 - down_pct / 100)
+            rate = st.number_input("Interest Rate (%)", 6.5)
+            term = st.selectbox("Loan Term (Years)", [15, 30], index=1)
+            start_rent = st.number_input("Starting Monthly Rent ($)", 2200)
+        with col2:
+            start_exp = st.number_input("Starting Monthly Expenses ($)", 800)
+            years = st.slider("Years to Simulate", 1, 30, 5)
+            num_simulations = st.slider("Number of Simulations", 100, 2000, 500, step=100)
+
+            rent_range = st.slider("Rent Growth Range (%)", 0.0, 10.0, (2.0, 4.0))
+            appr_range = st.slider("Appreciation Range (%)", 0.0, 10.0, (2.0, 5.0))
+            exp_range = st.slider("Expense Growth Range (%)", 0.0, 10.0, (1.0, 4.0))
+
+        # MONTE CARLO SIMULATION
+        st.subheader("🔁 Running Simulations...")
+        progress = st.progress(0)
+        roi_results, irr_results = [], []
+
+        for i in range(num_simulations):
+            r_growth = np.random.uniform(*rent_range)
+            e_growth = np.random.uniform(*exp_range)
+            v_growth = np.random.uniform(*appr_range)
+
+            m_rate = rate / 100 / 12
+            months = term * 12
+            mortgage = npf.pmt(m_rate, months, -loan)
+
+            r = start_rent
+            e = start_exp
+            val = price
+            bal = loan
+            cf_list = []
+            cash_flows = [-price * down_pct / 100]
+
+            for y in range(years):
+                cf = (r - e - mortgage) * 12
+                cf_list.append(cf)
+                cash_flows.append(cf)
+                for _ in range(12):
+                    intr = bal * m_rate
+                    princ = mortgage - intr
+                    bal -= princ
+                val *= 1 + v_growth / 100
+                r *= 1 + r_growth / 100
+                e *= 1 + e_growth / 100
+
+            sale_price = val
+            sale_costs = 0.06 * sale_price
+            net_proceeds = sale_price - sale_costs - bal
+            roi = (sum(cf_list) + net_proceeds) / (price * down_pct / 100) * 100
+            irr = npf.irr(cash_flows + [net_proceeds]) * 100 if len(cash_flows) > 1 else 0
+
+            roi_results.append(roi)
+            irr_results.append(irr)
+            progress.progress((i + 1) / num_simulations)
+
+        # SUMMARY
+        st.subheader("📊 Summary Statistics")
+
+        def summary_stats(name, data):
+            arr = np.array(data)
+            p10, med, p90 = np.percentile(arr, [10, 50, 90])
+            st.markdown(f"**{name}**")
+            st.write(f"• 10th Percentile: {p10:.1f}%")
+            st.write(f"• Median: {med:.1f}%")
+            st.write(f"• 90th Percentile: {p90:.1f}%")
+            return arr
+
+        roi_arr = summary_stats("ROI", roi_results)
+        irr_arr = summary_stats("IRR", irr_results)
+
+        # CHARTS
+        st.subheader("📈 ROI Distribution")
+        fig_roi = go.Figure()
+        fig_roi.add_trace(go.Histogram(x=roi_arr, nbinsx=50, marker_color="#4ade80"))
+        fig_roi.update_layout(title="ROI Distribution", plot_bgcolor="#18181b", paper_bgcolor="#18181b", font_color="#f3f3f3", margin=dict(l=30, r=30, t=40, b=30))
+        st.plotly_chart(fig_roi, use_container_width=True)
+
+        st.subheader("📈 IRR Distribution")
+        fig_irr = go.Figure()
+        fig_irr.add_trace(go.Histogram(x=irr_arr, nbinsx=50, marker_color="#38bdf8"))
+        fig_irr.update_layout(title="IRR Distribution", plot_bgcolor="#18181b", paper_bgcolor="#18181b", font_color="#f3f3f3", margin=dict(l=30, r=30, t=40, b=30))
+        st.plotly_chart(fig_irr, use_container_width=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 # ─────────────────────────── PROPERTY COMPARISON ────────────────
@@ -634,34 +797,107 @@ elif page == "🏘 Property Comparison":
 elif page == "🧪 Advanced Analytics (Pro)":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🧪 Advanced Analytics & Forecasting (Pro)")
-    scenario = st.radio("Scenario",["Conservative","Base","Aggressive","Custom"],horizontal=True)
-    if scenario=="Conservative": rent_g,appr,exp_g = 1.5,2.0,3.0
-    elif scenario=="Aggressive": rent_g,appr,exp_g = 4.0,5.0,1.5
-    elif scenario=="Base": rent_g,appr,exp_g = 2.5,3.0,2.0
+
+    # Scenario Selector
+    scenario = st.radio("Scenario", ["Conservative", "Base", "Aggressive", "Custom"], horizontal=True)
+    if scenario == "Conservative":
+        rent_g, appr, exp_g = 1.5, 2.0, 3.0
+    elif scenario == "Aggressive":
+        rent_g, appr, exp_g = 4.0, 5.0, 1.5
+    elif scenario == "Base":
+        rent_g, appr, exp_g = 2.5, 3.0, 2.0
     else:
-        rc1,rc2,rc3 = st.columns(3)
-        with rc1: rent_g = st.number_input("Rent Growth %",2.5)
-        with rc2: appr = st.number_input("Appreciation %",3.0)
-        with rc3: exp_g = st.number_input("Expense Growth %",2.0)
+        rc1, rc2, rc3 = st.columns(3)
+        with rc1: rent_g = st.number_input("Rent Growth %", 2.5)
+        with rc2: appr = st.number_input("Appreciation %", 3.0)
+        with rc3: exp_g = st.number_input("Expense Growth %", 2.0)
 
-    st.subheader("📈 5-Year Projection")
-    price=250000; rent=2200; exp=800; loan=200000; rate=0.065/12; months=30*12
-    mortgage=npf.pmt(rate,months,-loan)
-    years=[1,2,3,4,5]; cf_list=[]; eq_list=[]; roi_list=[]; balance=loan; val=price
+    # Input Assumptions
+    st.subheader("📋 Assumptions")
+    c1, c2 = st.columns(2)
+    with c1:
+        price = st.number_input("Purchase Price ($)", 250000)
+        down_pct = st.slider("Down Payment %", 0, 100, 20)
+        rate = st.number_input("Interest Rate (%)", 6.5)
+        term = st.selectbox("Loan Term (Years)", [15, 30], index=1)
+    with c2:
+        rent = st.number_input("Starting Monthly Rent ($)", 2200)
+        expenses = st.number_input("Starting Monthly Expenses ($)", 800)
+        exit_year = st.slider("Exit Year (Hold Period)", 1, 30, 5)
+
+    # Calculations
+    down = price * down_pct / 100
+    loan = price - down
+    months = term * 12
+    m_rate = rate / 100 / 12
+    mortgage = npf.pmt(m_rate, months, -loan)
+
+    balance = loan
+    val = price
+    r = rent
+    e = expenses
+    years = list(range(1, exit_year + 1))
+    roi_list, equity_list, cf_list, table_rows = [], [], [], []
+
+    cash_flows = [-down]  # initial investment (negative)
+
     for y in years:
-        cf=(rent-exp-mortgage)*12
-        for _ in range(12): intr=balance*rate; princ=mortgage-intr; balance-=princ
-        equity=val-balance; roi=((cf+equity)/(price-loan))*100
-        cf_list.append(cf); eq_list.append(equity); roi_list.append(roi)
-        rent*=1+rent_g/100; exp*=1+exp_g/100; val*=1+appr/100
+        cf = (r - e - mortgage) * 12
+        for _ in range(12):
+            intr = balance * m_rate
+            princ = mortgage - intr
+            balance -= princ
+        equity = val - balance
+        roi = ((cf + equity) / down) * 100
 
-    fig = plot_line_chart("5-Year Investment Projections", years, {
+        roi_list.append(roi)
+        equity_list.append(equity)
+        cf_list.append(cf)
+        cash_flows.append(cf)
+        table_rows.append([y, f"${r*12:,.0f}", f"${e*12:,.0f}", f"${cf:,.0f}", f"${equity:,.0f}", f"{roi:.1f}%"])
+
+        # Growth for next year
+        r *= 1 + rent_g / 100
+        e *= 1 + exp_g / 100
+        val *= 1 + appr / 100
+
+    # Sale proceeds at exit
+    sale_price = val
+    selling_costs = 0.06 * sale_price
+    net_sale_proceeds = sale_price - selling_costs - balance
+    total_cash_flow = sum(cf_list)
+    total_profit = net_sale_proceeds + total_cash_flow
+    final_roi = (total_profit / down) * 100
+    irr = npf.irr(cash_flows + [net_sale_proceeds]) * 100 if len(cash_flows) > 1 else 0
+
+    # Key Metrics
+    st.subheader("📈 Exit Year Metrics")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Cash Flow", f"${total_cash_flow:,.0f}")
+    col2.metric("Net Sale Proceeds", f"${net_sale_proceeds:,.0f}")
+    col3.metric("Final ROI", f"{final_roi:.1f}%")
+    col4.metric("Estimated IRR", f"{irr:.1f}%")
+
+    # ROI Table
+    st.subheader("📊 Year-by-Year Breakdown")
+    df = pd.DataFrame(table_rows, columns=["Year", "Rent", "Expenses", "Cash Flow", "Equity", "ROI %"])
+    st.dataframe(df, use_container_width=True)
+
+    # Chart
+    st.subheader("📉 Performance Chart")
+    fig = plot_line_chart("Investment Projections", years, {
         "Annual Cash Flow": cf_list,
-        "Equity": eq_list,
+        "Equity": equity_list,
         "ROI %": roi_list
     })
     st.plotly_chart(fig, use_container_width=True)
+
+    # Export Option
+    csv = df.copy()
+    csv["IRR"] = f"{irr:.1f}%"
+    st.download_button("⬇️ Download Yearly ROI Table (CSV)", csv.to_csv(index=False).encode(), "advanced_roi_projection.csv", "text/csv")
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ─────────────────────────── REHAB & REFI ────────────────────────
 elif page == "🏚 Rehab & Refi (Pro)":
