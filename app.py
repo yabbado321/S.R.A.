@@ -124,7 +124,19 @@ st.markdown("<p style='text-align:center; font-size:14px; color:gray;'>Created b
 st.markdown("### 📬 Contact Me")
 st.markdown("**Email:** [smart-rental-analyzer@outlook.com](mailto:smart-rental-analyzer@outlook.com)")
 
+
+# Handle page redirect (from buttons like 🚀) BEFORE selectbox renders
+if "page_redirect" in st.session_state:
+    st.session_state.page = st.session_state.pop("page_redirect")
+
+# Initialize default page
+if "page" not in st.session_state:
+    st.session_state.page = "👋 Get Started (Wizard)"
+
+
+# Page selection dropdown synced with session state
 page = st.selectbox("Navigate to:", [
+    "👋 Get Started (Wizard)",
     "🏠 Home",
     "📊 Quick Deal Analyzer",
     "💡 Break-Even Calculator",
@@ -135,7 +147,20 @@ page = st.selectbox("Navigate to:", [
     "📈 Monte Carlo Simulator",
     "🏚 Rehab & Refi",
     "📖 Glossary"
-])
+], index=[
+    "👋 Get Started (Wizard)",
+    "🏠 Home",
+    "📊 Quick Deal Analyzer",
+    "💡 Break-Even Calculator",
+    "📘 ROI & Projections",
+    "📂 Deal History",
+    "🏘 Property Comparison",
+    "🧪 Advanced Analytics",
+    "📈 Monte Carlo Simulator",
+    "🏚 Rehab & Refi",
+    "📖 Glossary"
+].index(st.session_state.page), key="page")
+
 
 
 # Chart Upgrade Helper: Use Plotly for all visuals going forward.
@@ -184,6 +209,99 @@ if page == "🏠 Home":
     styled = pd.DataFrame(comp_data).set_index('Feature')
     st.dataframe(styled, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
+
+
+
+elif page == "👋 Get Started (Wizard)":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+
+    if "wizard_step" not in st.session_state:
+        st.session_state.wizard_step = 1
+        st.session_state.wizard_data = {}
+
+    step = st.session_state.wizard_step
+    data = st.session_state.wizard_data
+
+    if step == 1:
+        st.header("👋 Welcome to RentInel's Smart Rental Analyzer!")
+        st.markdown("---")
+        st.markdown("**Features:** Quick Deal Analyzer, ROI & Projections, Break-Even, CSV/PDF Exports, Premium Pro tools")
+        st.markdown("---")
+
+        cols = st.columns(3)
+        cols[0].success("✅ Beginner Friendly")
+        cols[1].info("📈 Advanced ROI Tools")
+        cols[2].warning("💾 Export & Reports")
+
+
+
+    st.markdown("""
+This 3-step wizard helps you analyze your first rental deal with zero stress.
+
+Click **Next** to begin.
+        """)
+    if st.button("➡️ Next"):
+        st.session_state.wizard_step += 1
+        st.rerun()
+        
+
+
+    elif step == 2:
+        st.header("🏠 Step 1: Property Inputs")
+        data["name"] = st.text_input("Property Name", value=data.get("name", "Untitled Deal"))
+        data["price"] = st.number_input("Purchase Price ($)", value=data.get("price", 250000))
+        data["rent"] = st.number_input("Expected Monthly Rent ($)", value=data.get("rent", 2200))
+        data["expenses"] = st.number_input("Estimated Monthly Expenses ($)", value=data.get("expenses", 1400))
+        data["down"] = st.slider("Down Payment (%)", 0, 100, data.get("down", 20))
+
+        col1, col2 = st.columns(2)
+        if col1.button("⬅️ Back"):
+            st.session_state.wizard_step -= 1
+            st.rerun()
+
+        if col2.button("➡️ Analyze"):
+            st.session_state.wizard_step += 1
+            st.rerun()
+
+
+    elif step == 3:
+        st.header("📊 Step 2: Deal Snapshot")
+
+        price = data["price"]
+        rent = data["rent"]
+        expenses = data["expenses"]
+        down = data["down"]
+        total_invest = price * down / 100
+        annual_cf = (rent - expenses) * 12
+        roi = (annual_cf / total_invest) * 100 if total_invest else 0
+        cap = ((rent - expenses) * 12 / price) * 100 if price else 0
+        score = min(roi, 20)/20*60 + min(cap, 10)/10*30 + (10 if annual_cf > 0 else -10)
+        score = max(0, min(score, 100))
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("ROI", f"{roi:.1f}%")
+        col2.metric("Cap Rate", f"{cap:.1f}%")
+        col3.metric("Annual Cash Flow", f"${annual_cf:,.0f}")
+        col4.metric("Score", f"{score:.1f}/100")
+
+        st.markdown("✅ You’ve completed the quick walkthrough!")
+        st.markdown("Want to dive deeper?")
+
+        if st.button("🚀 Go to Full Deal Analyzer"):
+            st.session_state.page_redirect = "📊 Quick Deal Analyzer"
+            st.rerun()
+
+
+        if st.button("🔁 Start Over"):
+            st.session_state.wizard_step = 1
+            st.session_state.wizard_data = {}
+            st.rerun()
+
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+
 
 
 # ─────────────────────────── QUICK DEAL ANALYZER ───────────────────
