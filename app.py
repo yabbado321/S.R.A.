@@ -5,28 +5,7 @@ import plotly.graph_objs as go
 import numpy_financial as npf
 from fpdf import FPDF
 import os, json
-
-
 import requests
-
-def get_location_info(address):
-    url = f"https://nominatim.openstreetmap.org/search"
-    params = {
-        "q": address,
-        "format": "json",
-        "addressdetails": 1,
-        "limit": 1
-    }
-    r = requests.get(url, params=params, headers={"User-Agent": "SmartRentalAnalyzer"})
-    if r.status_code == 200 and r.json():
-        data = r.json()[0]["address"]
-        return {
-            "zip": data.get("postcode", ""),
-            "city": data.get("city", data.get("town", "")),
-            "state": data.get("state", "")
-        }
-    return None
-
 
 
 # Load deals from file when app starts
@@ -121,6 +100,16 @@ col_l, col_c, col_r = st.columns([2.2,2,0.8])
 with col_c: st.image("logo.png", width=150)
 st.markdown("<p style='text-align:center; font-size:14px; color:gray;'>Created by Jacob Klingman</p>", unsafe_allow_html=True)
 
+# Button just below the header (centered)
+st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+if st.button("👋 Quick Deal Analyzer Tutorial"):
+    st.session_state.page_redirect = "👋 Get Started"
+    st.rerun()
+st.markdown("</div>", unsafe_allow_html=True)
+
+# Content below the button
+
+
 st.markdown("### 📬 Contact Me")
 st.markdown("**Email:** [smart-rental-analyzer@outlook.com](mailto:smart-rental-analyzer@outlook.com)")
 
@@ -131,13 +120,13 @@ if "page_redirect" in st.session_state:
 
 # Initialize default page
 if "page" not in st.session_state:
-    st.session_state.page = "👋 Get Started (Wizard)"
+    st.session_state.page = "🏠 Home"  # Set Home as the default page
 
 
 # Page selection dropdown synced with session state
 page = st.selectbox("Navigate to:", [
-    "👋 Get Started (Wizard)",
     "🏠 Home",
+    "👋 Get Started",
     "📊 Quick Deal Analyzer",
     "💡 Break-Even Calculator",
     "📘 ROI & Projections",
@@ -146,10 +135,11 @@ page = st.selectbox("Navigate to:", [
     "🧪 Advanced Analytics",
     "📈 Monte Carlo Simulator",
     "🏚 Rehab & Refi",
-    "📖 Glossary"
+    "💸 Tax Benefits",
+    "📖 Help & Info"
 ], index=[
-    "👋 Get Started (Wizard)",
     "🏠 Home",
+    "👋 Get Started",
     "📊 Quick Deal Analyzer",
     "💡 Break-Even Calculator",
     "📘 ROI & Projections",
@@ -158,7 +148,8 @@ page = st.selectbox("Navigate to:", [
     "🧪 Advanced Analytics",
     "📈 Monte Carlo Simulator",
     "🏚 Rehab & Refi",
-    "📖 Glossary"
+    "💸 Tax Benefits",
+    "📖 Help & Info"
 ].index(st.session_state.page), key="page")
 
 
@@ -194,25 +185,25 @@ if page == "🏠 Home":
     st.markdown("**Features:** Quick Deal Analyzer, ROI & Projections, Break-Even, CSV/PDF Exports, Premium Pro tools")
     st.markdown("---")
 
+
     st.markdown("### 🆚 How We Stack Up Against Competitors")
     comp_data = {
-        'Feature':[ 'Quick Deal Analyzer','ROI & Multi-Year Projections','Break-Even Calculator','Deal Score / Rating','Property Comparison','Advanced Analytics Charts','Rehab & Refi Tools','CSV Export','PDF Export','Mobile Friendly','AI Insights'],
-        'RentIntel':['✅','✅','✅','✅','✅','✅','✅','✅','✅','✅','🚧'],
-        'BiggerPockets':['✅','✅','❌','❌','❌','❌','❌','✅','❌','✅','❌'],
-        'Stessa':['❌','✅','❌','❌','❌','❌','❌','✅','❌','✅','❌'],
-        'Roofstock':['✅','✅','❌','❌','❌','❌','❌','✅','✅','✅','❌'],
-        'DealCheck':['✅','✅','❌','❌','✅','❌','❌','✅','❌','🚧','❌'],
-        'Mashvisor':['✅','✅','❌','❌','❌','✅','❌','✅','❌','✅','❌'],
-        'Rentometer':['✅','❌','❌','❌','❌','❌','❌','❌','❌','✅','❌'],
-        'Zilculator':['✅','✅','✅','❌','✅','❌','❌','✅','❌','❌','❌']
+        'Feature': ['Quick Deal Analyzer', 'ROI & Multi-Year Projections', 'Break-Even Calculator', 'Deal Score / Rating', 'Property Comparison', 'Advanced Analytics Charts', 'Rehab & Refi Tools', 'CSV Export', 'PDF Export', 'Mobile Friendly', 'AI Insights'],
+        'RentIntel': ['✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '🚧'],
+        'BiggerPockets': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '✅', '❌'],
+        'Stessa': ['❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '✅', '❌'],
+        'Roofstock': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '✅', '❌'],
+        'DealCheck': ['✅', '✅', '❌', '❌', '✅', '❌', '❌', '✅', '❌', '🚧', '❌'],
+        'Mashvisor': ['✅', '✅', '❌', '❌', '❌', '✅', '❌', '✅', '❌', '✅', '❌'],
+        'Rentometer': ['✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌'],
+        'Zilculator': ['✅', '✅', '✅', '❌', '✅', '❌', '❌', '✅', '❌', '❌', '❌']
     }
     styled = pd.DataFrame(comp_data).set_index('Feature')
     st.dataframe(styled, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-
-elif page == "👋 Get Started (Wizard)":
+elif page == "👋 Get Started":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
     if "wizard_step" not in st.session_state:
@@ -227,12 +218,57 @@ elif page == "👋 Get Started (Wizard)":
         st.markdown("---")
         st.markdown("**Features:** Quick Deal Analyzer, ROI & Projections, Break-Even, CSV/PDF Exports, Premium Pro tools")
         st.markdown("---")
+        
+        # Add How This Works section with better formatting
+        st.markdown("### 🧑‍🏫 **How This Works**")
+        st.markdown("""
+        This wizard will guide you through analyzing your first rental deal using our Smart Rental Analyzer. Each tool is designed to help you make better investment decisions. Below is a brief overview of each tool:
 
-        cols = st.columns(3)
-        cols[0].success("✅ Beginner Friendly")
-        cols[1].info("📈 Advanced ROI Tools")
-        cols[2].warning("💾 Export & Reports")
+        #### 📊 **Quick Deal Analyzer**
+        - **Purpose**: Evaluate the viability of a rental property.
+        - **What You’ll See**: ROI (Return on Investment), Cap Rate, and Annual Cash Flow.
+        - **How It Helps**: Provides a quick snapshot of the property's profitability.
 
+        #### 💡 **Break-Even Calculator**
+        - **Purpose**: Find the minimum rent needed to cover all expenses.
+        - **What You’ll See**: Break-even rent, mortgage, maintenance, and other costs.
+        - **How It Helps**: Helps you understand the rent you need to make the property profitable.
+
+        #### 📘 **ROI & Multi-Year Projections**
+        - **Purpose**: See your investment’s performance over several years.
+        - **What You’ll See**: Cash flow, equity growth, ROI, and more.
+        - **How It Helps**: Visualizes the long-term financial health of your investment.
+
+        #### 🏚 **Rehab & Refi Tools (Pro)**
+        - **Purpose**: Estimate the ROI for renovation and refinancing projects.
+        - **What You’ll See**: Rehab costs, after-repair value (ARV), and new ROI.
+        - **How It Helps**: Lets you analyze the benefits of renovating or refinancing.
+
+        #### 🧪 **Advanced Analytics**
+        - **Purpose**: Make more informed decisions using market data and projections.
+        - **What You’ll See**: Conservative, base, and aggressive projections.
+        - **How It Helps**: Simulates various market conditions to predict the best and worst-case scenarios.
+
+        #### 🏘 **Property Comparison**
+        - **Purpose**: Compare multiple properties side-by-side.
+        - **What You’ll See**: Key metrics like ROI, cash flow, and cap rate for each property.
+        - **How It Helps**: Helps you compare the potential returns of multiple properties at once.
+
+        #### 📈 **Monte Carlo Simulation**
+        - **Purpose**: Simulate uncertain outcomes to assess risk.
+        - **What You’ll See**: A distribution of ROI and IRR values.
+        - **How It Helps**: Shows you the range of possible returns, helping you understand the risk involved.
+
+        #### 📖 **Help & Info**
+        - **Purpose**: Learn more about real estate terms and app methodology.
+        - **What You’ll See**: Definitions of key terms and how estimates are calculated.
+        - **How It Helps**: Provides transparency and clarity on how data and projections are derived.
+
+        ---
+        
+        ### Ready to dive in?
+        Click **Next** to get started with analyzing your first property!
+        """)
 
 
     st.markdown("""
@@ -284,7 +320,7 @@ Click **Next** to begin.
         col3.metric("Annual Cash Flow", f"${annual_cf:,.0f}")
         col4.metric("Score", f"{score:.1f}/100")
 
-        st.markdown("✅ You’ve completed the quick walkthrough!")
+        st.markdown("✅ You’ve completed the quick walkthrough of our Quick Deal Analyzer!")
         st.markdown("Want to dive deeper?")
 
         if st.button("🚀 Go to Full Deal Analyzer"):
@@ -299,8 +335,6 @@ Click **Next** to begin.
 
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-
 
 
 
@@ -434,6 +468,35 @@ elif page == "📊 Quick Deal Analyzer":
         for t in tips:
             st.markdown(t)
 
+        with st.expander("📘 Score Explanation"):
+         st.markdown("""
+**Deal Score Breakdown:**
+
+- 🟢 **ROI (Return on Investment)** — Up to **60 points**  
+  ROI is calculated as: `(Annual Cash Flow ÷ Down Payment) × 100`  
+  - Max score: ROI of 20% = 60 points  
+  - Example: 10% ROI = 30 points
+
+- 🟡 **Cap Rate** — Up to **30 points**  
+  Cap Rate is: `(Net Operating Income ÷ Purchase Price) × 100`  
+  - Max score: Cap Rate of 10% = 30 points  
+  - Example: 5% Cap = 15 points
+
+- 🔵 **Cash Flow Sign** — ±10 points  
+  - Positive = +10  
+  - Negative = -10
+
+---
+
+**Total Score = ROI pts + Cap Rate pts + Cash Flow pts**
+
+Score Range:
+- 85–100: 🔥 Great deal
+- 70–84: 👍 Solid
+- 50–69: ⚠️ Needs improvement
+- Below 50: 🚨 Risky or low return
+    """)
+
         st.markdown("### 🧮 Quick Sensitivity Adjustment")
         rent_min, rent_max = int(rent * 0.8), int(rent * 1.2)
         exp_min, exp_max = int(expenses * 0.8), int(expenses * 1.2)
@@ -454,7 +517,6 @@ elif page == "📊 Quick Deal Analyzer":
         d2.metric("ROI", f"{adj_roi:.1f}%", f"{adj_roi - res['roi']:+.1f}%")
         d3.metric("Cap Rate", f"{adj_cap:.1f}%", f"{adj_cap - res['cap']:+.1f}%")
         d4.metric("Score", f"{adj_score:.1f}", f"{adj_score - res['score']:+.1f}")
-
 
 
 # ─────────────────────────── BREAK-EVEN CALCULATOR ────────────────
@@ -1110,11 +1172,107 @@ elif page == "📊 Deal Summary Comparison":
 
 
 
+elif page == "💸 Tax Benefits":
+    import re
+    from fpdf import FPDF
+
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.header("💸 Rental Property Tax Benefits & Write-Offs")
+    st.markdown("Explore the deductions available to landlords — with IRS links and audit tips to keep you protected.")
+
+    benefits = [
+        ("🏦 Mortgage Interest Deduction",
+         "Deduct interest paid on loans for purchasing, refinancing, or improving rental properties.",
+         "https://www.irs.gov/publications/p936",
+         "Keep copies of your loan documents and annual Form 1098 from your lender."),
+        
+        ("🏠 Property Taxes",
+         "Deduct real estate taxes paid to local and state governments.",
+         "https://www.irs.gov/taxtopics/tc503",
+         "Keep property tax bills and proof of payment (e.g., bank statements or checks)."),
+        
+        ("📉 Depreciation",
+         "You can depreciate the building (not land) over 27.5 years — reducing taxable income even as the property appreciates.",
+         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219031",
+         "Maintain records of the purchase price, land vs building value, and depreciation schedules."),
+        
+        ("🔧 Repairs & Maintenance",
+         "Deduct repairs like plumbing fixes, painting, or replacing appliances — not improvements.",
+         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219043",
+         "Save all repair receipts and make a note of the purpose and date of the work."),
+        
+        ("🛡️ Insurance Premiums",
+         "Landlord, liability, flood, and fire insurance premiums are fully deductible.",
+         "https://www.irs.gov/publications/p535",
+         "Keep annual insurance invoices and proof of payment."),
+        
+        ("👨‍💼 Property Management Fees",
+         "Fees paid to property managers or assistants for running rental operations are deductible.",
+         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
+         "Retain management agreements, invoices, and payment confirmations."),
+        
+        ("🚗 Travel & Mileage",
+         "Deduct trips made for rental purposes — mileage, lodging, or airfare if the property is out of town.",
+         "https://www.irs.gov/pub/irs-pdf/p463.pdf",
+         "Use a mileage log app or notebook. Record trip dates, purpose, and distances."),
+        
+        ("⚖️ Legal & Professional Fees",
+         "Deduct legal advice, eviction filings, accounting, and tax prep fees for rentals.",
+         "https://www.irs.gov/publications/p535",
+         "Save all invoices and retainers, especially for legal work."),
+        
+        ("💡 Utilities",
+         "Landlord-paid gas, water, electric, internet, and trash are deductible.",
+         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
+         "Keep utility bills and statements. Note which units each bill covers."),
+        
+        ("📢 Advertising & Tenant Screening",
+         "Deduct rental listings, signs, flyers, and screening services (credit/background checks).",
+         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
+         "Save invoices from listing platforms and screening services."),
+        
+        ("🏘 HOA Fees & Condo Dues",
+         "Monthly or annual HOA/condo fees related to rental units are deductible.",
+         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
+         "Save HOA billing statements and bank records of payments."),
+        
+        ("🧰 Supplies & Small Tools",
+         "Items like locks, smoke detectors, cleaning supplies, or light tools are deductible.",
+         "https://www.irs.gov/publications/p535",
+         "Keep itemized receipts and note which property each supply was used for."),
+        
+        ("🏡 Home Office Deduction",
+         "If you manage rentals from a dedicated space at home, you may qualify for this deduction.",
+         "https://www.irs.gov/publications/p587",
+         "Document square footage, take photos of the space, and keep utility/home bills."),
+        
+        ("📚 Education & Books",
+         "Courses, seminars, or books that enhance your rental property management skills may be deductible.",
+         "https://www.irs.gov/publications/p970",
+         "Keep receipts and ensure the content is directly related to your rental business."),
+        
+        ("🚀 Start-Up & Organizational Costs",
+         "Initial legal, research, and marketing costs before your first rental goes live can be amortized.",
+         "https://www.irs.gov/publications/p535#en_US_2023_publink1000208932",
+         "Document each startup expense and note the date your rental officially began.")
+    ]
+
+    for title, desc, link, tip in benefits:
+        with st.expander(title):
+            st.markdown(f"**What It Is:** {desc}")
+            st.markdown(f"🔗 [IRS Guidance]({link})")
+            st.markdown(f"🧾 **Audit Tip:** {tip}")
+
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
 # ─────────────────────────── GLOSSARY ───────────────────────────
-elif page == "📖 Glossary":
+elif page == "📖 Help & Info":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("📖 Real Estate & Investment Glossary")
+    
     glossary={
+        "---":"-------------------------------------------------------------------------------------------------------------------",
         "Appraisal":"Professional estimate of market value.",
         "Cap Rate":"NOI ÷ Purchase Price.",
         "Cash Flow":"Money left each month after expenses.",
@@ -1133,6 +1291,25 @@ elif page == "📖 Glossary":
         "PMI":"Private Mortgage Insurance.",
         "Vacancy Rate":"% time property is vacant."
     }
+    st.markdown("------------")
+    st.header("Data & Methodology")
+    st.subheader("--------------------------------------------------------------------------------------------------------------------------")
+    st.markdown("""
+    **Data Sources:**  
+    We use a combination of publicly available and aggregated data, including:  
+    - U.S. Census Bureau rental statistics  
+    - HUD Fair Market Rents (FMR) data  
+    - Recent market listings from sources like Zillow and Rentometer (where available)  
+
+    **How Estimates Are Calculated:**  
+    Our rent estimates combine these data sources by calculating weighted averages of median rents by ZIP code and adjusting for property features such as number of bedrooms. We also consider seasonal market trends where possible.
+
+    **Limitations:**  
+    These rent estimates are approximations. Actual rents may vary due to factors like exact location, property condition, and market fluctuations. Use this as a guide, not a guarantee.
+
+    **Data Updates:**  
+    Rental data is updated regularly to reflect current market conditions, with the last update shown on the app’s main page.
+    """)
     for k in sorted(glossary.keys()): st.markdown(f"**{k}**: {glossary[k]}")
     st.markdown("</div>", unsafe_allow_html=True)
 
