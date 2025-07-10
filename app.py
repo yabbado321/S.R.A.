@@ -8,7 +8,7 @@ import os, json
 import requests
 
 
-# Load deals from file when app starts
+
 if "deals" not in st.session_state:
     if os.path.exists("deals.json"):
         with open("deals.json", "r") as f:
@@ -16,10 +16,22 @@ if "deals" not in st.session_state:
     else:
         st.session_state["deals"] = []
 
-# ─────────────────────────── PAGE CONFIG ────────────────────────────
+def plot_dual_line_chart(title, x_vals, y1_vals, y1_name, y2_vals, y2_name):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x_vals, y=y1_vals, mode='lines+markers', name=y1_name))
+    fig.add_trace(go.Scatter(x=x_vals, y=y2_vals, mode='lines+markers', name=y2_name))
+    fig.update_layout(
+        title=title,
+        xaxis_title='Year',
+        yaxis_title='Amount ($)',
+        template='plotly_white'
+    )
+    return fig
+
+# ─────────────────────────── PAGE CONFIG ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="🏡 Smart Rental Analyzer", layout="wide")
 
-# ─────────────────────────── GLOBAL STYLING ─────────────────────────
+# ─────────────────────────── GLOBAL STYLING ─────────────────────────────────────────────────────────────────────────────────────────────────
 custom_css = """
 <style>
 :root {
@@ -66,7 +78,7 @@ input, textarea { background:#2a2a2a !important; color: var(--text) !important; 
 st.markdown(custom_css, unsafe_allow_html=True)
 
 
-# ── Sticky Deal Summary Bar ──────────────────────────────────────────
+# ── Sticky Deal Summary Bar ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 def render_summary_bar(title, items):
     rows = "".join([
         f"<div style='flex:1 1 200px;padding:0.25rem 1rem;'>"
@@ -85,7 +97,7 @@ def render_summary_bar(title, items):
     st.markdown(html, unsafe_allow_html=True)
 
 
-# ─────────────────────────── TOOLTIP HELPER ─────────────────────────
+# ─────────────────────────── TOOLTIP HELPER ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 TOOLTIP = """
 <span class='tooltip'>[?]<span class='tooltiptext'>{}</span></span>
 """
@@ -94,42 +106,41 @@ TOOLTIP = """
 def tt(label:str, tip:str):
     return f"**{label}** {TOOLTIP.format(tip)}"
 
-# ─────────────────────────── HEADER / NAV ───────────────────────────
+# ─────────────────────────── HEADER / NAV ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 st.markdown("<h1 style='text-align:center;'>🏡 Smart Rental Analyzer</h1>", unsafe_allow_html=True)
 col_l, col_c, col_r = st.columns([2.2,2,0.8])
 with col_c: st.image("logo.png", width=150)
 st.markdown("<p style='text-align:center; font-size:14px; color:gray;'>Created by Jacob Klingman</p>", unsafe_allow_html=True)
 
-# Button just below the header (centered)
+
 st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
 if st.button("👋 Quick Deal Analyzer Tutorial"):
     st.session_state.page_redirect = "👋 Get Started"
     st.rerun()
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Content below the button
+
 
 
 st.markdown("### 📬 Contact Me")
 st.markdown("**Email:** [smart-rental-analyzer@outlook.com](mailto:smart-rental-analyzer@outlook.com)")
 
 
-# Handle page redirect (from buttons like 🚀) BEFORE selectbox renders
+
 if "page_redirect" in st.session_state:
     st.session_state.page = st.session_state.pop("page_redirect")
 
-# Initialize default page
 if "page" not in st.session_state:
-    st.session_state.page = "🏠 Home"  # Set Home as the default page
+    st.session_state.page = "🏠 Home"  
 
 
-# Page selection dropdown synced with session state
+
 page = st.selectbox("Navigate to:", [
     "🏠 Home",
     "👋 Get Started",
     "📊 Quick Deal Analyzer",
     "💡 Break-Even Calculator",
-    "📘 ROI & Projections",
+    "📘 Multi-Year ROI + Tax Insights",
     "📂 Deal History",
     "🏘 Property Comparison",
     "🧪 Advanced Analytics",
@@ -142,7 +153,7 @@ page = st.selectbox("Navigate to:", [
     "👋 Get Started",
     "📊 Quick Deal Analyzer",
     "💡 Break-Even Calculator",
-    "📘 ROI & Projections",
+    "📘 Multi-Year ROI + Tax Insights",
     "📂 Deal History",
     "🏘 Property Comparison",
     "🧪 Advanced Analytics",
@@ -154,7 +165,7 @@ page = st.selectbox("Navigate to:", [
 
 
 
-# Chart Upgrade Helper: Use Plotly for all visuals going forward.
+
 def plot_line_chart(title, x_vals, y_dict):
     fig = go.Figure()
     for label, values in y_dict.items():
@@ -171,7 +182,7 @@ def plot_line_chart(title, x_vals, y_dict):
     return fig
 
 
-# ─────────────────────────── HOME ────────────────────────────
+# ─────────────────────────── HOME ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 if page == "🏠 Home":
     st.markdown("---")
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -188,7 +199,7 @@ if page == "🏠 Home":
 
     st.markdown("### 🆚 How We Stack Up Against Competitors")
     comp_data = {
-        'Feature': ['Quick Deal Analyzer', 'ROI & Multi-Year Projections', 'Break-Even Calculator', 'Deal Score / Rating', 'Property Comparison', 'Advanced Analytics Charts', 'Rehab & Refi Tools', 'CSV Export', 'PDF Export', 'Mobile Friendly', 'AI Insights'],
+        'Feature': ['Quick Deal Analyzer', 'Multi-Year ROI + Tax Insights', 'Break-Even Calculator', 'Deal Score / Rating', 'Property Comparison', 'Advanced Analytics Charts', 'Rehab & Refi Tools', 'CSV Export', 'PDF Export', 'Mobile Friendly', 'AI Insights'],
         'RentIntel': ['✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '🚧'],
         'BiggerPockets': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '✅', '❌'],
         'Stessa': ['❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '✅', '❌'],
@@ -219,7 +230,7 @@ elif page == "👋 Get Started":
         st.markdown("**Features:** Quick Deal Analyzer, ROI & Projections, Break-Even, CSV/PDF Exports, Premium Pro tools")
         st.markdown("---")
         
-        # Add How This Works section with better formatting
+       
         st.markdown("### 🧑‍🏫 **How This Works**")
         st.markdown("""
         This wizard will guide you through analyzing your first rental deal using our Smart Rental Analyzer. Each tool is designed to help you make better investment decisions. Below is a brief overview of each tool:
@@ -234,7 +245,7 @@ elif page == "👋 Get Started":
         - **What You’ll See**: Break-even rent, mortgage, maintenance, and other costs.
         - **How It Helps**: Helps you understand the rent you need to make the property profitable.
 
-        #### 📘 **ROI & Multi-Year Projections**
+        #### 📘 **Multi-Year ROI + Tax Insights**
         - **Purpose**: See your investment’s performance over several years.
         - **What You’ll See**: Cash flow, equity growth, ROI, and more.
         - **How It Helps**: Visualizes the long-term financial health of your investment.
@@ -338,8 +349,7 @@ Click **Next** to begin.
 
 
 
-# ─────────────────────────── QUICK DEAL ANALYZER ───────────────────
-# 📊 QUICK DEAL ANALYZER TAB — CLEANED + DEAL SNAPSHOT INTEGRATED
+# ─────────────────────────── QUICK DEAL ANALYZER ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 elif page == "📊 Quick Deal Analyzer":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -362,11 +372,11 @@ elif page == "📊 Quick Deal Analyzer":
 
     col1, col2 = st.columns(2)
     with col1:
-        price = st.number_input("Purchase Price ($)", value=250000)
-        rent = st.number_input("Monthly Rent ($)", value=2200)
+        price = st.number_input("Purchase Price ($)", min_value=-1e6, value=250000.0)
+        rent = st.number_input("Monthly Rent ($)", min_value=-1e6, value=2200.0)
     with col2:
-        expenses = st.number_input("Monthly Expenses ($)", value=1400)
-        down_pct = st.slider("Down Payment (%)", 0, 100, 20)
+        expenses = st.number_input("Monthly Expenses ($)", min_value=-1e6, value=1400.0)
+        down_pct = st.slider("Down Payment (%)", min_value=0.0, max_value=100.0, value=20.0, step=1.0)
 
     if st.button("🔍 Analyze Deal"):
         st.session_state.analyzed = True
@@ -380,8 +390,8 @@ elif page == "📊 Quick Deal Analyzer":
         roi = (annual_cf / total_investment) * 100 if total_investment else 0
         cap_rate = ((rent - expenses) * 12 / price) * 100 if price else 0
 
-        roi_score = min(roi, 20) / 20 * 60  # Max 60 points
-        cap_score = min(cap_rate, 10) / 10 * 30  # Max 30 points
+        roi_score = min(roi, 20) / 20 * 60  
+        cap_score = min(cap_rate, 10) / 10 * 30  
         cf_score = 10 if annual_cf > 0 else -10
         score = max(0, min(roi_score + cap_score + cf_score, 100))
 
@@ -393,7 +403,7 @@ elif page == "📊 Quick Deal Analyzer":
             "score": score,
         }
 
-        # ✅ Save to history
+        
         result = {
             "title": prop_name,
             "price": price,
@@ -502,9 +512,10 @@ Score Range:
         exp_min, exp_max = int(expenses * 0.8), int(expenses * 1.2)
         col5, col6 = st.columns(2)
         with col5:
-            adj_rent = st.slider("Adjusted Rent", rent_min, rent_max, rent, step=25, format="$%d")
+         adj_rent = st.slider("Adjusted Rent", rent_min, rent_max, value=(rent_min + rent_max) // 2, step=25, format="$%d")
         with col6:
-            adj_exp = st.slider("Adjusted Expenses", exp_min, exp_max, expenses, step=25, format="$%d")
+         adj_exp = st.slider("Adjusted Expenses", exp_min, exp_max, value=(exp_min + exp_max) // 2, step=25, format="$%d")
+
 
         adj_cf = (adj_rent - adj_exp) * 12
         adj_roi = (adj_cf / total_inv) * 100 if total_inv else 0
@@ -519,7 +530,7 @@ Score Range:
         d4.metric("Score", f"{adj_score:.1f}", f"{adj_score - res['score']:+.1f}")
 
 
-# ─────────────────────────── BREAK-EVEN CALCULATOR ────────────────
+# ─────────────────────────── BREAK-EVEN CALCULATOR ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "💡 Break-Even Calculator":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("💡 Break-Even Calculator")
@@ -534,15 +545,16 @@ elif page == "💡 Break-Even Calculator":
 
     c1,c2 = st.columns(2)
     with c1:
-        price = st.number_input("Purchase Price ($)", min_value=0, value=250000, step=1000)
-        down_pct = st.slider("Down Payment (%)",0,100,20)
-        int_rate = st.number_input("Loan Interest Rate (%)",6.5)
+        price = st.number_input("Purchase Price ($)", min_value=-1e6, value=250000.0, step=1000.0)
+        down_pct = st.slider("Down Payment (%)", min_value=0.0, max_value=100.0, value=20.0, step=1.0)
+        int_rate = st.number_input("Loan Interest Rate (%)", min_value=0.0, value=6.5, step=0.1)
+
         term = st.selectbox("Loan Term (Years)",[15,30],index=1)
     with c2:
-        ti = st.number_input("Taxes + Insurance + HOA ($/mo)",300)
-        maint_pct = st.slider("Maintenance (% of Rent)",0,20,10)
-        mgmt_pct = st.slider("Management (% of Rent)",0,20,8)
-        vac = st.slider("Vacancy Rate (%)",0,20,5)
+        ti = st.number_input("Taxes + Insurance + HOA ($/mo)", min_value=-1e6, value=300.0)
+        maint_pct = st.slider("Maintenance (% of Rent)", min_value=0.0, max_value=50.0, value=10.0, step=1.0)
+        mgmt_pct = st.slider("Management (% of Rent)", min_value=0.0, max_value=50.0, value=8.0, step=1.0)
+        vac = st.slider("Vacancy Rate (%)", min_value=0.0, max_value=30.0, value=5.0, step=1.0)
 
     loan = price*(1-down_pct/100)
     m_int = int_rate/100/12
@@ -576,59 +588,184 @@ elif page == "💡 Break-Even Calculator":
         st.error("❌ No break-even rent found in range. Try adjusting inputs.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ─────────────────────────── ROI & PROJECTIONS ────────────────────
-elif page == "📘 ROI & Projections":
+# ─────────────────────────── Multi-Year ROI + Tax Insights ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+elif page == "📘 Multi-Year ROI + Tax Insights":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.header("📘 ROI & Multi-Year Projections")
+    st.header("📘 Multi-Year ROI + Tax Insights")
+
     with st.expander("📘 Key Terms"):
-        c1,c2 = st.columns(2)
+        c1, c2 = st.columns(2)
         with c1:
-            st.markdown(tt("Equity","Value minus loan balance"),unsafe_allow_html=True)
-            st.markdown(tt("Rent Growth","Annual rent increase"),unsafe_allow_html=True)
+            st.markdown(tt("Equity", "Property value minus loan balance"), unsafe_allow_html=True)
+            st.markdown(tt("Rent Growth", "Annual rent increase (%)"), unsafe_allow_html=True)
+            st.markdown(tt("Down Payment", "Initial cash invested"), unsafe_allow_html=True)
         with c2:
-            st.markdown(tt("Expense Growth","Annual cost increase"),unsafe_allow_html=True)
-            st.markdown(tt("Appreciation","Property value growth"),unsafe_allow_html=True)
+            st.markdown(tt("Expense Growth", "Annual expense increase (%)"), unsafe_allow_html=True)
+            st.markdown(tt("Appreciation", "Annual property value growth (%)"), unsafe_allow_html=True)
+            st.markdown(tt("Cash-on-Cash ROI", "Annual cash flow divided by cash invested (%)"), unsafe_allow_html=True)
 
-    c1,c2 = st.columns(2)
+    c1, c2 = st.columns(2)
     with c1:
-        price = st.number_input("Purchase Price ($)",250000,key="roi_price")
-        dpct = st.slider("Down Payment (%)",0,100,20,key="roi_dp")
-        rate = st.number_input("Interest Rate (%)",6.5,key="roi_rate")
-        term = st.selectbox("Loan Term (Years)",[15,30],index=1,key="roi_term")
-        years = st.slider("Years to Project",1,30,5)
+        price = st.number_input("Purchase Price ($)", 0.0, 1e9, 250000.0)
+        dpct = st.slider("Down Payment (%)", 0.0, 100.0, 20.0, 1.0)
+        rate = st.number_input("Interest Rate (%)", 0.0, 20.0, 6.5)
+        term = st.selectbox("Loan Term (Years)", [15, 30], index=1)
+        years = st.slider("Years to Project", 1, 30, 5)
     with c2:
-        rent = st.number_input("Starting Monthly Rent ($)",2200)
-        exp = st.number_input("Monthly Expenses ($)",800)
-        rent_g = st.slider("Rent Growth (%/yr)",0,10,3)
-        exp_g = st.slider("Expense Growth (%/yr)",0,10,2)
-        appr = st.slider("Appreciation (%/yr)",0,10,3)
+        rent = st.number_input("Starting Monthly Rent ($)", 0.0, 1e5, 2200.0)
+        exp = st.number_input("Monthly Expenses ($)", 0.0, 1e5, 800.0)
+        rent_g = st.slider("Rent Growth (%/yr)", 0.0, 10.0, 3.0, 0.5)
+        exp_g = st.slider("Expense Growth (%/yr)", 0.0, 10.0, 2.0, 0.5)
+        appr = st.slider("Appreciation (%/yr)", 0.0, 10.0, 3.0, 0.5)
 
-    dp = price*dpct/100
-    loan = price-dp
-    mrate = rate/100/12
-    tot_months = term*12
-    mortgage = npf.pmt(mrate,tot_months,-loan)
+    # New inputs for tax & sale
+    st.markdown("---")
+    st.subheader("🔧 Tax & Sale Inputs")
+    land_pct = st.slider("Land Value Percentage (%)", 0, 50, 20, key="roi_land_pct")
+    tax_rate = st.slider("Income Tax Rate (%)", 0, 50, 24, key="roi_tax_rate")
+    sale_year = st.slider("Projected Sale Year", 1, years, years, key="roi_sale_year")
 
-    balance=loan; value=price; r=rent; e=exp
-    rows=[]; roi_vals=[]
-    for yr in range(1,years+1):
-        annual_cf=(r-e-mortgage)*12
+    dp = price * dpct / 100
+    loan = price - dp
+    mrate = rate / 100 / 12
+    tot_months = term * 12
+    mortgage = npf.pmt(mrate, tot_months, -loan)
+
+    balance = loan
+    value = price
+    r = rent
+    e = exp
+
+    rows = []
+    roi_cash_on_cash = []
+    roi_equity_annualized = []
+    roi_total_annualized = []
+    after_tax_cf_list = []
+    equity_list = []
+    cash_flow_list = []
+
+    for yr in range(1, years + 1):
+        annual_cf = (r - e - mortgage) * 12
+
+        # Amortize loan balance monthly for the year
         for _ in range(12):
-            intr=balance*mrate; princ=mortgage-intr; balance-=princ
-        equity=value-balance
-        roi=((annual_cf+equity)/dp)*100
-        rows.append([yr,f"${r*12:,.0f}",f"${e*12:,.0f}",f"${annual_cf:,.0f}",f"${equity:,.0f}",f"{roi:.1f}%"])
-        roi_vals.append(roi)
-        r*=1+rent_g/100; e*=1+exp_g/100; value*=1+appr/100
+            interest = balance * mrate
+            principal = mortgage - interest
+            balance -= principal
 
-    df=pd.DataFrame(rows,columns=["Year","Annual Rent","Annual Expenses","Cash Flow","Equity","ROI"])
-    st.dataframe(df,use_container_width=True)
-    st.plotly_chart(plot_line_chart("Projected ROI (%)", list(range(1,years+1)), {"ROI %": roi_vals}))
-    csv=df.to_csv(index=False).encode()
-    st.download_button("⬇️ Download ROI Projection (CSV)",csv,"roi_projection.csv","text/csv")
+        # Appreciation applies at end of year
+        value *= (1 + appr / 100)
+
+        # Equity gain excludes initial down payment
+        equity = (value - balance) - dp
+
+        # Depreciation calculation (building value / 27.5 years)
+        building_value = price * (1 - land_pct / 100)
+        annual_depr = building_value / 27.5
+
+        # Tax savings from depreciation (simplified)
+        tax_savings = annual_depr * tax_rate / 100
+
+        # After-tax cash flow = cash flow + tax savings (simplified)
+        after_tax_cf = annual_cf + tax_savings
+
+        # ROI calculations
+        cash_on_cash = (annual_cf / dp) * 100 if dp != 0 else 0
+        cash_on_cash_after_tax = (after_tax_cf / dp) * 100 if dp != 0 else 0
+        equity_annualized = (equity / dp) * 100 / yr if dp != 0 else 0
+        total_annualized = ((annual_cf + equity) / dp) * 100 / yr if dp != 0 else 0
+
+        rows.append([
+            yr,
+            f"${r * 12:,.0f}",
+            f"${e * 12:,.0f}",
+            f"${annual_cf:,.0f}",
+            f"${equity:,.0f}",
+            f"${after_tax_cf:,.0f}",
+            f"{cash_on_cash:.1f}%",
+            f"{cash_on_cash_after_tax:.1f}%",
+            f"{equity_annualized:.1f}%",
+            f"{total_annualized:.1f}%"
+        ])
+
+        roi_cash_on_cash.append(cash_on_cash)
+        roi_equity_annualized.append(equity_annualized)
+        roi_total_annualized.append(total_annualized)
+        after_tax_cf_list.append(after_tax_cf)
+        equity_list.append(equity)
+        cash_flow_list.append(annual_cf)
+
+        # Increase rent and expenses for next year
+        r *= (1 + rent_g / 100)
+        e *= (1 + exp_g / 100)
+
+    df = pd.DataFrame(
+        rows,
+        columns=[
+            "Year", "Annual Rent", "Annual Expenses", "Cash Flow", "Equity",
+            "After-Tax Cash Flow", "Cash-on-Cash ROI", "After-Tax Cash-on-Cash ROI",
+            "Equity ROI (Annualized)", "Total ROI (Annualized)"
+        ]
+    )
+
+    with st.expander("📊 ROI Table & Chart", expanded=True):
+        st.dataframe(df, use_container_width=True)
+        st.plotly_chart(plot_line_chart("Projected ROI (%)", list(range(1, years + 1)), {
+            "Cash-on-Cash ROI %": roi_cash_on_cash,
+            "Equity ROI (Annualized) %": roi_equity_annualized,
+            "Total ROI (Annualized) %": roi_total_annualized,
+        }))
+        csv = df.to_csv(index=False).encode()
+        st.download_button("⬇️ Download ROI Projection (CSV)", csv, "roi_projection.csv", "text/csv")
+
+    with st.expander("📉 Depreciation & After-Tax Cash Flow"):
+        st.markdown(f"**Building Value (Depreciable):** ${building_value:,.0f}")
+        st.markdown(f"**Annual Depreciation:** ${annual_depr:,.0f}")
+        st.markdown(f"**Estimated Tax Savings from Depreciation:** ${tax_savings:,.0f} (at {tax_rate}%)")
+        st.markdown(f"**After-Tax Cash Flow Example (Year 1):** ${after_tax_cf_list[0]:,.0f}")
+
+    with st.expander("📈 IRR Calculation"):
+        # Build cash flow array for IRR: initial investment (negative), then yearly after-tax cash flow,
+        # then sale proceeds at sale_year with equity + sale appreciation minus 6% selling costs
+
+        initial_outflow = -dp
+        cash_flows = [initial_outflow]
+        # Use after-tax cash flow for each year except sale year
+        for y in range(1, years + 1):
+            if y == sale_year:
+                # Sale proceeds = equity at sale year + remaining equity from principal + appreciation
+                # subtract 6% selling costs on property value at sale
+                prop_value_at_sale = price * ((1 + appr / 100) ** y)
+                selling_costs = prop_value_at_sale * 0.06
+                net_sale_proceeds = equity_list[y-1] + dp - selling_costs  # include original down payment back
+                total_cash_flow = after_tax_cf_list[y-1] + net_sale_proceeds
+                cash_flows.append(total_cash_flow)
+            else:
+                cash_flows.append(after_tax_cf_list[y-1])
+
+        irr = npf.irr(cash_flows)
+        irr_pct = irr * 100 if irr is not None else None
+
+        st.markdown(f"**Internal Rate of Return (IRR) up to year {sale_year}:**")
+        if irr_pct is not None and not pd.isna(irr_pct):
+            st.metric(label="IRR (%)", value=f"{irr_pct:.2f}%")
+        else:
+            st.write("IRR could not be calculated with the provided inputs.")
+
+    with st.expander("📊 Cash Flow vs Equity Growth Chart"):
+        years_list = list(range(1, years + 1))
+        st.plotly_chart(plot_dual_line_chart(
+            "Annual Cash Flow vs Cumulative Equity",
+            years_list,
+            cash_flow_list,
+            "Annual Cash Flow",
+            equity_list,
+            "Cumulative Equity Gain"
+        ))
+
     st.markdown("</div>", unsafe_allow_html=True)
 
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 # ──────────────────────────── DEAL HISTORY ────────────────────────────
 
 elif page == "📂 Deal History":
@@ -725,7 +862,7 @@ elif page == "📂 Deal History":
                     key=f"pdf_export_{dtype.replace(' ', '_')}"
                 )
 
-# ───────────────────────────────────────────────────────────────────────
+# ─────────────────Monte Carlo Sim ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 elif page == "📈 Monte Carlo Simulator":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -775,17 +912,17 @@ This tool helps you **quantify uncertainty** and better understand how your assu
     with tab1:
         st.markdown("Run randomized simulations to estimate how your investment might perform under uncertain market conditions.")
 
-        # INPUTS
+        
         col1, col2 = st.columns(2)
         with col1:
-            price = st.number_input("Purchase Price ($)", 250000)
+            price = st.number_input("Purchase Price ($)", min_value=-1e6, value=250000.0)
             down_pct = st.slider("Down Payment (%)", 0, 100, 20)
             loan = price * (1 - down_pct / 100)
-            rate = st.number_input("Interest Rate (%)", 6.5)
+            rate = st.number_input("Interest Rate (%)", min_value=-100.0, value=6.5)
             term = st.selectbox("Loan Term (Years)", [15, 30], index=1)
-            start_rent = st.number_input("Starting Monthly Rent ($)", 2200)
+            start_rent = st.number_input("Starting Monthly Rent ($)", min_value=-1e6, value=2200.0)
         with col2:
-            start_exp = st.number_input("Starting Monthly Expenses ($)", 800)
+            start_exp = st.number_input("Starting Monthly Expenses ($)", min_value=-1e6, value=800.0)
             years = st.slider("Years to Simulate", 1, 30, 5)
             num_simulations = st.slider("Number of Simulations", 100, 2000, 500, step=100)
 
@@ -793,10 +930,11 @@ This tool helps you **quantify uncertainty** and better understand how your assu
             appr_range = st.slider("Appreciation Range (%)", 0.0, 10.0, (2.0, 5.0))
             exp_range = st.slider("Expense Growth Range (%)", 0.0, 10.0, (1.0, 4.0))
 
-        # MONTE CARLO SIMULATION
+        
         st.subheader("🔁 Running Simulations...")
         progress = st.progress(0)
         roi_results, irr_results = [], []
+        cash_flows = []
 
         for i in range(num_simulations):
             r_growth = np.random.uniform(*rent_range)
@@ -815,28 +953,35 @@ This tool helps you **quantify uncertainty** and better understand how your assu
             cash_flows = [-price * down_pct / 100]
 
             for y in range(years):
-                cf = (r - e - mortgage) * 12
-                cf_list.append(cf)
-                cash_flows.append(cf)
-                for _ in range(12):
-                    intr = bal * m_rate
-                    princ = mortgage - intr
-                    bal -= princ
-                val *= 1 + v_growth / 100
-                r *= 1 + r_growth / 100
-                e *= 1 + e_growth / 100
+             cf = (r - e - mortgage) * 12  
+             cf_list.append(cf)
+             cash_flows.append(cf)
+
+             for _ in range(12):  
+                 interest = bal * m_rate  
+                 principal = mortgage - interest  
+                 bal -= principal  
+
+             val *= 1 + v_growth / 100 
+             r *= 1 + r_growth / 100 
+             e *= 1 + e_growth / 100
 
             sale_price = val
             sale_costs = 0.06 * sale_price
             net_proceeds = sale_price - sale_costs - bal
             roi = (sum(cf_list) + net_proceeds) / (price * down_pct / 100) * 100
-            irr = npf.irr(cash_flows + [net_proceeds]) * 100 if len(cash_flows) > 1 else 0
-
+            
+            cash_flows[-1] += net_proceeds
+            try:
+                irr = npf.irr(cash_flows) * 100
+            except:
+                irr = 0
             roi_results.append(roi)
             irr_results.append(irr)
+            
             progress.progress((i + 1) / num_simulations)
 
-        # SUMMARY
+       
         st.subheader("📊 Summary Statistics")
 
         def summary_stats(name, data):
@@ -851,7 +996,7 @@ This tool helps you **quantify uncertainty** and better understand how your assu
         roi_arr = summary_stats("ROI", roi_results)
         irr_arr = summary_stats("IRR", irr_results)
 
-        # CHARTS
+        
         st.subheader("📈 ROI Distribution")
         fig_roi = go.Figure()
         fig_roi.add_trace(go.Histogram(x=roi_arr, nbinsx=50, marker_color="#4ade80"))
@@ -868,7 +1013,7 @@ This tool helps you **quantify uncertainty** and better understand how your assu
 
 
 
-# ─────────────────────────── PROPERTY COMPARISON ────────────────
+# ─────────────────────────── PROPERTY COMPARISON ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🏘 Property Comparison":
     import pandas as pd
     from fpdf import FPDF
@@ -909,10 +1054,10 @@ elif page == "🏘 Property Comparison":
     col1, col2 = st.columns(2)
     with col1:
         name = st.text_input("Property Name", value="123 Main St")
-        price = st.number_input("Purchase Price ($)", value=300000)
-        rent = st.number_input("Monthly Rent ($)", value=2500)
+        price = st.number_input("Purchase Price ($)", min_value=-1e6, value=300000.0)
+        rent = st.number_input("Monthly Rent ($)", min_value=-1e6, value=2500.0)
     with col2:
-        expenses = st.number_input("Monthly Expenses ($)", value=1800)
+        expenses = st.number_input("Monthly Expenses ($)", min_value=-1e6, value=1800.0)
         down = st.slider("Down Payment %", 0, 100, 20)
 
     if st.button("➕ Add to Compare"):
@@ -973,12 +1118,11 @@ elif page == "🏘 Property Comparison":
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ─────────────────────────── ADVANCED ANALYTICS ──────────────────
+# ─────────────────────────── ADVANCED ANALYTICS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🧪 Advanced Analytics":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🧪 Advanced Analytics & Forecasting (Pro)")
 
-    # Scenario Selector
     scenario = st.radio("Scenario", ["Conservative", "Base", "Aggressive", "Custom"], horizontal=True)
     if scenario == "Conservative":
         rent_g, appr, exp_g = 1.5, 2.0, 3.0
@@ -988,24 +1132,22 @@ elif page == "🧪 Advanced Analytics":
         rent_g, appr, exp_g = 2.5, 3.0, 2.0
     else:
         rc1, rc2, rc3 = st.columns(3)
-        with rc1: rent_g = st.number_input("Rent Growth %", 2.5)
-        with rc2: appr = st.number_input("Appreciation %", 3.0)
-        with rc3: exp_g = st.number_input("Expense Growth %", 2.0)
+        with rc1: rent_g = st.number_input("Rent Growth %", min_value=0.0, value=2.5)
+        with rc2: appr = st.number_input("Appreciation %", min_value=0.0, value=3.0)
+        with rc3: exp_g = st.number_input("Expense Growth %", min_value=0.0, value=2.0)
 
-    # Input Assumptions
     st.subheader("📋 Assumptions")
     c1, c2 = st.columns(2)
     with c1:
-        price = st.number_input("Purchase Price ($)", 250000)
+        price = st.number_input("Purchase Price ($)", min_value=0.0, value=250000.0)
         down_pct = st.slider("Down Payment %", 0, 100, 20)
-        rate = st.number_input("Interest Rate (%)", 6.5)
+        rate = st.number_input("Interest Rate (%)", min_value=0.0, value=6.5)
         term = st.selectbox("Loan Term (Years)", [15, 30], index=1)
     with c2:
-        rent = st.number_input("Starting Monthly Rent ($)", 2200)
-        expenses = st.number_input("Starting Monthly Expenses ($)", 800)
+        rent = st.number_input("Starting Monthly Rent ($)", min_value=0.0, value=2200.0)
+        expenses = st.number_input("Starting Monthly Expenses ($)", min_value=0.0, value=800.0)
         exit_year = st.slider("Exit Year (Hold Period)", 1, 30, 5)
 
-    # Calculations
     down = price * down_pct / 100
     loan = price - down
     months = term * 12
@@ -1017,40 +1159,63 @@ elif page == "🧪 Advanced Analytics":
     r = rent
     e = expenses
     years = list(range(1, exit_year + 1))
-    roi_list, equity_list, cf_list, table_rows = [], [], [], []
 
-    cash_flows = [-down]  # initial investment (negative)
+    roi_list, equity_list, cf_list, table_rows = [], [], [], []
+    cash_flows = [-down]  # Initial investment as negative cash flow
 
     for y in years:
+        # Annual cash flow calculation
         cf = (r - e - mortgage) * 12
+
+        principal_paid_year = 0
+        # Monthly amortization
         for _ in range(12):
-            intr = balance * m_rate
-            princ = mortgage - intr
-            balance -= princ
+            interest = balance * m_rate
+            principal = mortgage - interest
+            balance -= principal
+            principal_paid_year += principal
+
+        # Update property value with appreciation
+        val *= 1 + appr / 100
+
+        # Equity = current value minus remaining loan balance
         equity = val - balance
-        roi = ((cf + equity) / down) * 100
+
+        # ROI calculation (total return relative to down payment)
+        roi = ((cf + (equity - down)) / down) * 100 if down != 0 else 0
 
         roi_list.append(roi)
         equity_list.append(equity)
         cf_list.append(cf)
-        cash_flows.append(cf)
-        table_rows.append([y, f"${r*12:,.0f}", f"${e*12:,.0f}", f"${cf:,.0f}", f"${equity:,.0f}", f"{roi:.1f}%"])
+        table_rows.append([
+            y,
+            f"${r * 12:,.0f}",
+            f"${e * 12:,.0f}",
+            f"${cf:,.0f}",
+            f"${equity:,.0f}",
+            f"{roi:.1f}%"
+        ])
 
-        # Growth for next year
+        cash_flows.append(cf)
+
+        # Increase rent and expenses for next year
         r *= 1 + rent_g / 100
         e *= 1 + exp_g / 100
-        val *= 1 + appr / 100
 
-    # Sale proceeds at exit
+    # Calculate net proceeds from sale at exit
     sale_price = val
     selling_costs = 0.06 * sale_price
     net_sale_proceeds = sale_price - selling_costs - balance
+
+    # Append sale proceeds to cash flows for IRR calc
+    cash_flows[-1] += net_sale_proceeds  # Add sale proceeds to last year cash flow
+
     total_cash_flow = sum(cf_list)
     total_profit = net_sale_proceeds + total_cash_flow
-    final_roi = (total_profit / down) * 100
-    irr = npf.irr(cash_flows + [net_sale_proceeds]) * 100 if len(cash_flows) > 1 else 0
+    final_roi = (total_profit / down) * 100 if down != 0 else 0
 
-    # Key Metrics
+    irr = npf.irr(cash_flows) * 100 if len(cash_flows) > 1 else 0
+
     st.subheader("📈 Exit Year Metrics")
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Cash Flow", f"${total_cash_flow:,.0f}")
@@ -1058,12 +1223,10 @@ elif page == "🧪 Advanced Analytics":
     col3.metric("Final ROI", f"{final_roi:.1f}%")
     col4.metric("Estimated IRR", f"{irr:.1f}%")
 
-    # ROI Table
     st.subheader("📊 Year-by-Year Breakdown")
     df = pd.DataFrame(table_rows, columns=["Year", "Rent", "Expenses", "Cash Flow", "Equity", "ROI %"])
     st.dataframe(df, use_container_width=True)
 
-    # Chart
     st.subheader("📉 Performance Chart")
     fig = plot_line_chart("Investment Projections", years, {
         "Annual Cash Flow": cf_list,
@@ -1072,27 +1235,28 @@ elif page == "🧪 Advanced Analytics":
     })
     st.plotly_chart(fig, use_container_width=True)
 
-    # Export Option
     csv = df.copy()
     csv["IRR"] = f"{irr:.1f}%"
     st.download_button("⬇️ Download Yearly ROI Table (CSV)", csv.to_csv(index=False).encode(), "advanced_roi_projection.csv", "text/csv")
+
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ─────────────────────────── REHAB & REFI ────────────────────────
+
+# ─────────────────────────── REHAB & REFI ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🏚 Rehab & Refi":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🏚 Renovation & Refinance Tools (Pro)")
     with st.expander("🛠️ Rehab ROI Calculator",expanded=True):
         r1,r2 = st.columns(2)
         with r1:
-            price = st.number_input("Purchase Price ($)",300000)
+            price = st.number_input("Purchase Price ($)", min_value=-1e6, value=300000.0)
             dpct = st.slider("Down Payment %",0,100,20)
             dp = price*dpct/100
-            rehab = st.number_input("Rehab Cost ($)",25000,step=1000)
+            rehab = st.number_input("Rehab Cost ($)", min_value=-1e6, value=25000.0, step=1000.0)
         with r2:
-            loan_bal = st.number_input("Outstanding Loan Balance ($)",int(price-dp))
-            arv = st.number_input("After-Repair Value ($)",int(price*1.1),step=1000)
+            loan_bal = st.number_input("Outstanding Loan Balance ($)", min_value=-1e6, value=240000.0)
+            arv = st.number_input("After-Repair Value ($)", min_value=-1e6, value=275000.0, step=1000.0)
             months = st.slider("Months Until Rehab Complete",1,24,6)
         invested=dp+rehab; equity=arv-loan_bal; post_roi=((equity-invested)/invested)*100 if invested else 0
         st.metric("Total Invested",f"${invested:,.0f}"); st.metric("Equity After Rehab",f"${equity:,.0f}"); st.metric("Post-Rehab ROI",f"{post_roi:.1f}%")
@@ -1101,10 +1265,10 @@ elif page == "🏚 Rehab & Refi":
         c1,c2 = st.columns(2)
         with c1:
             refi_after = st.slider("Refinance After (Months)",1,360,12)
-            new_rate = st.number_input("New Rate (%)",5.0)
+            new_rate = st.number_input("New Rate (%)", min_value=-100.0, value=5.0)
         with c2:
             new_term = st.selectbox("New Term (Years)",[15,20,30],2)
-            cash_out = st.number_input("Cash-Out ($)",0,step=1000)
+            cash_out = st.number_input("Cash-Out ($)", min_value=-1e6, value=0.0, step=1000.0)
         new_principal = loan_bal+cash_out; new_payment=npf.pmt(new_rate/100/12,new_term*12,-new_principal)
         st.metric("New Monthly Payment",f"${new_payment:,.2f}"); st.metric("New Loan Amount",f"${new_principal:,.0f}"); st.metric("Cash Pulled Out",f"${cash_out:,.0f}")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -1128,7 +1292,7 @@ elif page == "📊 Deal Summary Comparison":
         if len(selected_indices) >= 2:
             comparison_data = [st.session_state["deals"][i] for i in selected_indices]
 
-            # Emoji helpers (with float conversion)
+           
             def score_emoji(score):
                 score = float(score)
                 if score >= 85:
@@ -1152,7 +1316,7 @@ elif page == "📊 Deal Summary Comparison":
                 cf = float(cf)
                 return "📈" if cf >= 400 else "➕" if cf >= 0 else "🔻"
 
-            # Data rows with emoji indicators
+            
             rows = [
                 ("Title", [deal["title"] for deal in comparison_data]),
                 ("Type", [deal.get("type", "") for deal in comparison_data]),
@@ -1171,7 +1335,7 @@ elif page == "📊 Deal Summary Comparison":
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-
+#────────────────── Tax Benefits ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "💸 Tax Benefits":
     import re
     from fpdf import FPDF
@@ -1266,13 +1430,13 @@ elif page == "💸 Tax Benefits":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ─────────────────────────── GLOSSARY ───────────────────────────
+# ─────────────────────────── GLOSSARY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "📖 Help & Info":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("📖 Real Estate & Investment Glossary")
     
     glossary={
-        "---":"-------------------------------------------------------------------------------------------------------------------",
+        "──────────────────":"──────────────────────────────────────────────────────────────────────────────────────────",
         "Appraisal":"Professional estimate of market value.",
         "Cap Rate":"NOI ÷ Purchase Price.",
         "Cash Flow":"Money left each month after expenses.",
@@ -1291,9 +1455,9 @@ elif page == "📖 Help & Info":
         "PMI":"Private Mortgage Insurance.",
         "Vacancy Rate":"% time property is vacant."
     }
-    st.markdown("------------")
+    st.markdown("────────────────────────────────────────────────────────────────────────")
     st.header("Data & Methodology")
-    st.subheader("--------------------------------------------------------------------------------------------------------------------------")
+    st.subheader("────────────────────────────────────────────────────────────────────────")
     st.markdown("""
     **Data Sources:**  
     We use a combination of publicly available and aggregated data, including:  
@@ -1312,5 +1476,3 @@ elif page == "📖 Help & Info":
     """)
     for k in sorted(glossary.keys()): st.markdown(f"**{k}**: {glossary[k]}")
     st.markdown("</div>", unsafe_allow_html=True)
-
-
