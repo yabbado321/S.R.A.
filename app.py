@@ -194,24 +194,41 @@ if page == "🏠 Home":
 
     st.markdown("---")
     st.markdown("**Features:** Quick Deal Analyzer, ROI & Projections, Break-Even, CSV/PDF Exports, Premium Pro tools")
+    st.markdown("Disclaimer: This tool is for educational and estimation purposes only. Always consult a qualified professional (real estate agent, CPA, lender) before making investment decisions.")
     st.markdown("---")
 
 
     st.markdown("### 🆚 How We Stack Up Against Competitors")
+
     comp_data = {
-        'Feature': ['Quick Deal Analyzer', 'Multi-Year ROI + Tax Insights', 'Break-Even Calculator', 'Deal Score / Rating', 'Property Comparison', 'Advanced Analytics Charts', 'Rehab & Refi Tools', 'CSV Export', 'PDF Export', 'Mobile Friendly', 'AI Insights'],
-        'RentIntel': ['✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '✅', '🚧'],
-        'BiggerPockets': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '✅', '❌'],
-        'Stessa': ['❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '✅', '❌'],
-        'Roofstock': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '✅', '❌'],
-        'DealCheck': ['✅', '✅', '❌', '❌', '✅', '❌', '❌', '✅', '❌', '🚧', '❌'],
-        'Mashvisor': ['✅', '✅', '❌', '❌', '❌', '✅', '❌', '✅', '❌', '✅', '❌'],
-        'Rentometer': ['✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌'],
-        'Zilculator': ['✅', '✅', '✅', '❌', '✅', '❌', '❌', '✅', '❌', '❌', '❌']
+    'Feature': [
+        'Quick Deal Analyzer',
+        'Multi-Year ROI + Tax Insights',
+        'Break-Even Calculator',
+        'Property Comparison',
+        'Advanced Analytics',
+        'Monte Carlo Simulator',
+        'Rehab & Refi Tools',
+        'Tax Benefits Explorer',
+        'CSV Export',
+        'PDF Export',
+        'Deal History & Notes',
+        'Score System (0–100 w/ Tips)',
+        'Mobile Friendly',
+        'AI Insights'
+    ],
+    'RentIntel': ['✅'] * 13 + ['🚧'],
+    'BiggerPockets': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌'],
+    'Stessa':        ['❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '❌', '✅', '❌'],
+    'Roofstock':     ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '✅', '❌'],
+    'DealCheck':     ['✅', '✅', '❌', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '🚧', '❌'],
+    'Mashvisor':     ['✅', '✅', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌'],
+    'Rentometer':    ['✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌'],
+    'Zilculator':    ['✅', '✅', '✅', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '❌', '❌']
     }
+
     styled = pd.DataFrame(comp_data).set_index('Feature')
     st.dataframe(styled, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 elif page == "👋 Get Started":
@@ -911,6 +928,7 @@ This tool helps you **quantify uncertainty** and better understand how your assu
 
     with tab1:
         st.markdown("Run randomized simulations to estimate how your investment might perform under uncertain market conditions.")
+        st.markdown("*This is still a Work in progress*")
 
         
         col1, col2 = st.columns(2)
@@ -926,9 +944,11 @@ This tool helps you **quantify uncertainty** and better understand how your assu
             years = st.slider("Years to Simulate", 1, 30, 5)
             num_simulations = st.slider("Number of Simulations", 100, 2000, 500, step=100)
 
-            rent_range = st.slider("Rent Growth Range (%)", 0.0, 10.0, (2.0, 4.0))
-            appr_range = st.slider("Appreciation Range (%)", 0.0, 10.0, (2.0, 5.0))
-            exp_range = st.slider("Expense Growth Range (%)", 0.0, 10.0, (1.0, 4.0))
+            rent_range = st.slider("Rent Growth Range (%)", 0.0, 10.0, (0.0, 2.0))  # Narrowed range
+            appr_range = st.slider("Appreciation Range (%)", 0.0, 10.0, (1.0, 2.0))  # Lower appreciation
+            exp_range = st.slider("Expense Growth Range (%)", 0.0, 10.0, (3.0, 6.0))
+
+           
 
         
         st.subheader("🔁 Running Simulations...")
@@ -967,7 +987,7 @@ This tool helps you **quantify uncertainty** and better understand how your assu
              e *= 1 + e_growth / 100
 
             sale_price = val
-            sale_costs = 0.06 * sale_price
+            sale_costs = 0.10 * sale_price
             net_proceeds = sale_price - sale_costs - bal
             roi = (sum(cf_list) + net_proceeds) / (price * down_pct / 100) * 100
             
@@ -1343,79 +1363,87 @@ elif page == "💸 Tax Benefits":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("💸 Rental Property Tax Benefits & Write-Offs")
     st.markdown("Explore the deductions available to landlords — with IRS links and audit tips to keep you protected.")
+    st.header("IMPORTANT DISCLAIMER!")
+    st.markdown("""
+    Disclaimer: This tool is for educational and estimation purposes only. Always consult a qualified professional (real estate agent, CPA, lender) before making investment decisions.
 
+ Record-Keeping: It’s crucial to maintain detailed records of all your rental property expenses and keep receipts.
+
+ Capitalization vs. Expense: Distinguish between repairs (deductible in the year incurred) and improvements (which must be capitalized and depreciated).
+
+ Tax Professional: Consider consulting a tax professional to ensure you’re taking full advantage of all eligible deductions""")
     benefits = [
-        ("🏦 Mortgage Interest Deduction",
+        ("🏦 Mortgage Interest Deduction - IRS Section 163(h)",
          "Deduct interest paid on loans for purchasing, refinancing, or improving rental properties.",
          "https://www.irs.gov/publications/p936",
          "Keep copies of your loan documents and annual Form 1098 from your lender."),
         
-        ("🏠 Property Taxes",
+        ("🏠 Property Taxes - IRS Section 164",
          "Deduct real estate taxes paid to local and state governments.",
          "https://www.irs.gov/taxtopics/tc503",
          "Keep property tax bills and proof of payment (e.g., bank statements or checks)."),
         
-        ("📉 Depreciation",
+        ("📉 Depreciation - IRS Section 167 & 168",
          "You can depreciate the building (not land) over 27.5 years — reducing taxable income even as the property appreciates.",
          "https://www.irs.gov/publications/p527#en_US_2023_publink1000219031",
          "Maintain records of the purchase price, land vs building value, and depreciation schedules."),
         
-        ("🔧 Repairs & Maintenance",
+        ("🔧 Repairs & Maintenance - IRS Section 162",
          "Deduct repairs like plumbing fixes, painting, or replacing appliances — not improvements.",
          "https://www.irs.gov/publications/p527#en_US_2023_publink1000219043",
          "Save all repair receipts and make a note of the purpose and date of the work."),
         
-        ("🛡️ Insurance Premiums",
+        ("🛡️ Insurance Premiums - IRS Section 162",
          "Landlord, liability, flood, and fire insurance premiums are fully deductible.",
          "https://www.irs.gov/publications/p535",
          "Keep annual insurance invoices and proof of payment."),
         
-        ("👨‍💼 Property Management Fees",
+        ("👨‍💼 Property Management Fees - IRS Section 162",
          "Fees paid to property managers or assistants for running rental operations are deductible.",
          "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
          "Retain management agreements, invoices, and payment confirmations."),
         
-        ("🚗 Travel & Mileage",
+        ("🚗 Travel & Mileage - IRS Section 162",
          "Deduct trips made for rental purposes — mileage, lodging, or airfare if the property is out of town.",
          "https://www.irs.gov/pub/irs-pdf/p463.pdf",
          "Use a mileage log app or notebook. Record trip dates, purpose, and distances."),
         
-        ("⚖️ Legal & Professional Fees",
+        ("⚖️ Legal & Professional Fees - IRS Section 162",
          "Deduct legal advice, eviction filings, accounting, and tax prep fees for rentals.",
          "https://www.irs.gov/publications/p535",
          "Save all invoices and retainers, especially for legal work."),
         
-        ("💡 Utilities",
+        ("💡 Utilities - IRS Section 162",
          "Landlord-paid gas, water, electric, internet, and trash are deductible.",
          "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
          "Keep utility bills and statements. Note which units each bill covers."),
         
-        ("📢 Advertising & Tenant Screening",
+        ("📢 Advertising & Tenant Screening - IRS Section 162",
          "Deduct rental listings, signs, flyers, and screening services (credit/background checks).",
          "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
          "Save invoices from listing platforms and screening services."),
         
-        ("🏘 HOA Fees & Condo Dues",
+        ("🏘 HOA Fees & Condo Dues - IRS Section 162",
          "Monthly or annual HOA/condo fees related to rental units are deductible.",
          "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
          "Save HOA billing statements and bank records of payments."),
         
-        ("🧰 Supplies & Small Tools",
+        ("🧰 Supplies & Small Tools - IRS Section 162",
          "Items like locks, smoke detectors, cleaning supplies, or light tools are deductible.",
          "https://www.irs.gov/publications/p535",
          "Keep itemized receipts and note which property each supply was used for."),
         
-        ("🏡 Home Office Deduction",
+        ("🏡 Home Office Deduction - IRS Section 280A",
          "If you manage rentals from a dedicated space at home, you may qualify for this deduction.",
          "https://www.irs.gov/publications/p587",
          "Document square footage, take photos of the space, and keep utility/home bills."),
         
-        ("📚 Education & Books",
+        ("📚 Education & Books -  IRS Section 162",
          "Courses, seminars, or books that enhance your rental property management skills may be deductible.",
          "https://www.irs.gov/publications/p970",
          "Keep receipts and ensure the content is directly related to your rental business."),
         
-        ("🚀 Start-Up & Organizational Costs",
+        ("🚀 Start-Up & Organizational Costs - IRS Section 195",
          "Initial legal, research, and marketing costs before your first rental goes live can be amortized.",
          "https://www.irs.gov/publications/p535#en_US_2023_publink1000208932",
          "Document each startup expense and note the date your rental officially began.")
@@ -1433,46 +1461,107 @@ elif page == "💸 Tax Benefits":
 # ─────────────────────────── GLOSSARY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "📖 Help & Info":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.header("📖 Real Estate & Investment Glossary")
-    
-    glossary={
-        "──────────────────":"──────────────────────────────────────────────────────────────────────────────────────────",
-        "Appraisal":"Professional estimate of market value.",
-        "Cap Rate":"NOI ÷ Purchase Price.",
-        "Cash Flow":"Money left each month after expenses.",
-        "Cash on Cash Return":"Annual cash flow ÷ cash invested.",
-        "Closing Costs":"One-time fees at purchase.",
-        "Comps":"Comparable recent sales.",
-        "Depreciation":"Tax deduction spreading property cost.",
-        "Equity":"Value minus loan balance.",
-        "Gross Rent Multiplier":"Price ÷ Gross Annual Rent.",
-        "Hard Money Loan":"Short-term, high-interest loan.",
-        "HOA":"Homeowners Association fee.",
-        "IRR":"Internal Rate of Return over time.",
-        "Loan-to-Value":"Loan amount ÷ property value.",
-        "Maintenance":"Reserve % of rent for repairs.",
-        "Net Operating Income":"Rent minus operating expenses.",
-        "PMI":"Private Mortgage Insurance.",
-        "Vacancy Rate":"% time property is vacant."
-    }
-    st.markdown("────────────────────────────────────────────────────────────────────────")
-    st.header("Data & Methodology")
-    st.subheader("────────────────────────────────────────────────────────────────────────")
-    st.markdown("""
-    **Data Sources:**  
-    We use a combination of publicly available and aggregated data, including:  
-    - U.S. Census Bureau rental statistics  
-    - HUD Fair Market Rents (FMR) data  
-    - Recent market listings from sources like Zillow and Rentometer (where available)  
+    st.header("📖 Real Estate Glossary & Methodology")
+    st.markdown("*A beginner-friendly guide to key real estate terms and how our estimates work.*")
 
-    **How Estimates Are Calculated:**  
-    Our rent estimates combine these data sources by calculating weighted averages of median rents by ZIP code and adjusting for property features such as number of bedrooms. We also consider seasonal market trends where possible.
+    with st.expander("💰 Cash Flow & Returns"):
+        st.markdown("""
+- **Cash Flow** 📈: Money left over each month after paying all expenses.
+- **ROI (Return on Investment)** 💸: Your profit as a % of the money you invested.
+- **Cap Rate** 🏦: Return based only on property income (ignores loan); higher is better.
+- **IRR (Internal Rate of Return)** ⏳: Average yearly return over time, with timing factored in.
+- **Cash-on-Cash Return** 💵: Cash profit ÷ cash invested — helpful when using loans.
+- **Equity** 💎: What you “own” in the property = value minus loan.
+- **Appreciation** 📈: Increase in property value over time.
+- **Net Operating Income (NOI)** 🧮: Rent - expenses (excluding mortgage).
+- **Total Return** 🧾: All gains combined — cash flow + equity + appreciation.
+        """)
 
-    **Limitations:**  
-    These rent estimates are approximations. Actual rents may vary due to factors like exact location, property condition, and market fluctuations. Use this as a guide, not a guarantee.
+    with st.expander("🏠 Property Terms"):
+        st.markdown("""
+- **Purchase Price** 💲: What you pay to buy the property.
+- **After Repair Value (ARV)** 🛠: Estimated value after rehab/renovations.
+- **Comparable Sales (Comps)** 🏘: Similar recently sold properties used to estimate value.
+- **Square Footage (Sq Ft)** 📏: The size of the home or unit.
+- **Zoning** 🧭: Local rules that control how the property can be used (e.g. residential, multifamily).
+- **HOA (Homeowners Association)** 🏘️: Monthly fees for shared communities or condos.
+        """)
 
-    **Data Updates:**  
-    Rental data is updated regularly to reflect current market conditions, with the last update shown on the app’s main page.
-    """)
-    for k in sorted(glossary.keys()): st.markdown(f"**{k}**: {glossary[k]}")
+    with st.expander("📊 Deal Analysis Metrics"):
+        st.markdown("""
+- **Gross Rent Multiplier (GRM)** 📐: Price ÷ Gross Annual Rent — a fast value estimate.
+- **Break-Even Rent** 💡: Minimum rent needed to cover all costs.
+- **Occupancy Rate** 🛏️: How often the property is rented out (vs. vacant).
+- **Vacancy Rate** 🚪: % of time the property is not rented.
+- **Deal Score** 🧠: A 0–100 score in RentIntel to help rank your deals.
+        """)
+
+    with st.expander("📉 Financing & Mortgages"):
+        st.markdown("""
+- **Down Payment** 💳: The cash you put up front (usually 20%).
+- **Loan-to-Value (LTV)** 📊: Loan ÷ Property Value — helps lenders assess risk.
+- **Interest Rate** 📈: What the lender charges you to borrow money.
+- **Mortgage** 🏦: A loan used to buy real estate, paid monthly over time.
+- **Amortization** ⏱️: The way your loan balance goes down monthly.
+- **Private Mortgage Insurance (PMI)** 🛡️: Extra insurance if your down payment is under 20%.
+- **Hard Money Loan** 🔥: Short-term, high-interest loan (used for flips or fast deals).
+- **Refinancing** 🔄: Replacing your loan with a new one — often to pull cash or lower rates.
+        """)
+
+    with st.expander("🧾 Taxes & Write-Offs"):
+        st.markdown("""
+- **Depreciation** 📉: A tax benefit that lets you deduct the building’s value over 27.5 years.
+- **Tax Savings** 🧾: Money you save at tax time due to expenses, depreciation, etc.
+- **1031 Exchange** 🔄: A way to sell a property and buy another without paying taxes now.
+- **Property Taxes** 🏠: Annual taxes paid to your city or county.
+- **IRS Schedule E** 📄: The tax form used to report rental income and expenses.
+- **Audit Trail** 📚: Proof (receipts, logs) that support your tax deductions.
+        """)
+
+    with st.expander("🧰 Operating Expenses & Management"):
+        st.markdown("""
+- **Repairs vs. Improvements** 🛠️: Repairs are deductible now; improvements are depreciated over time.
+- **Property Management Fees** 👷: What you pay a manager to handle tenants and maintenance.
+- **Maintenance Reserve** 🔧: A % of rent saved for ongoing repairs.
+- **Capital Expenditures (CapEx)** 🧱: Big-ticket items like roofs, HVAC, etc.
+- **Utilities** 💡: Landlord-paid services like water, gas, electric, etc.
+- **Insurance Premiums** 🛡️: Coverage for fire, liability, flood, etc.
+        """)
+
+    with st.expander("🧠 Strategy Terms"):
+        st.markdown("""
+- **BRRRR** 🔁: Buy, Rehab, Rent, Refinance, Repeat — a strategy to build a portfolio with less money.
+- **Buy & Hold** 🏠: Long-term rental investing for cash flow and appreciation.
+- **Fix & Flip** 🔨: Buy low, rehab fast, and sell for profit.
+- **House Hacking** 🧍🏠: Living in one part of a property and renting the rest.
+- **Wholesale Deal** 📦: Assigning a contract to another buyer for a fee.
+        """)
+
+    with st.expander("📊 Data & Methodology Disclaimer"):
+        st.markdown("""
+**Where does the data come from?**  
+All deal analyses are based on user-provided inputs like purchase price, rent, expenses, loan terms, and appreciation assumptions. The app does **not pull live market data** (e.g. Zillow, MLS, or county records) unless connected to third-party sources in the future.
+
+---
+
+**How are projections calculated?**  
+- **ROI, Cap Rate, and Cash Flow** use standard industry formulas.
+- **Multi-Year ROI** includes appreciation, equity growth, and tax-adjusted cash flow.
+- **IRR (Internal Rate of Return)** accounts for the timing of all cash flows.
+- **Depreciation** is calculated on a 27.5-year schedule (per IRS).
+- **Deal Score** is a RentIntel formula blending ROI, Cap Rate, and Cash Flow into a 0–100 score.
+
+---
+
+**What assumptions are included?**  
+- Rent and expense growth are applied annually.
+- Selling costs are assumed to be 6% of resale price.
+- Loan amortization is based on monthly payments.
+- Rehab/refi assumptions are conservative by default.
+
+---
+
+**Disclaimer:** This tool is for **educational and estimation purposes only**. Always consult a qualified professional (real estate agent, CPA, lender) before making investment decisions.
+        """)
+
     st.markdown("</div>", unsafe_allow_html=True)
