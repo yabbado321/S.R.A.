@@ -109,8 +109,8 @@ def tt(label:str, tip:str):
 # ─────────────────────────── HEADER / NAV ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 st.markdown("<h1 style='text-align:center;'>🏡 Smart Rental Analyzer</h1>", unsafe_allow_html=True)
 col_l, col_c, col_r = st.columns([2.2,2,0.8])
-with col_c: st.image("logo.png", width=150)
-st.markdown("<p style='text-align:center; font-size:14px; color:gray;'>Created by Jacob Klingman</p>", unsafe_allow_html=True)
+with col_c: st.image("logo.png", width=200)
+st.markdown("<p style='text-align:center; font-size:14px; color:gray;'></p>", unsafe_allow_html=True)
 
 
 st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
