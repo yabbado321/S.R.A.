@@ -7,6 +7,13 @@ from fpdf import FPDF
 import os, json
 import requests
 
+from datetime import datetime
+
+def export_csv_with_watermark(df):
+    watermark = f"# Exported by RentIntel on {datetime.now().strftime('%Y-%m-%d')}\n"
+    return (watermark + df.to_csv(index=False)).encode()
+
+WATERMARK_TEXT = "RentIntel – Smart Rental Analyzer"
 
 
 if "deals" not in st.session_state:
@@ -139,6 +146,7 @@ page = st.selectbox("Navigate to:", [
     "🏠 Home",
     "👋 Get Started",
     "📊 Quick Deal Analyzer",
+    "👥 Tenant Affordability Tool",
     "💡 Break-Even Calculator",
     "📘 Multi-Year ROI + Tax Insights",
     "📂 Deal History",
@@ -152,6 +160,7 @@ page = st.selectbox("Navigate to:", [
     "🏠 Home",
     "👋 Get Started",
     "📊 Quick Deal Analyzer",
+    "👥 Tenant Affordability Tool",
     "💡 Break-Even Calculator",
     "📘 Multi-Year ROI + Tax Insights",
     "📂 Deal History",
@@ -215,16 +224,15 @@ if page == "🏠 Home":
         'Deal History & Notes',
         'Score System (0–100 w/ Tips)',
         'Mobile Friendly',
-        'AI Insights'
     ],
-    'RentIntel': ['✅'] * 13 + ['🚧'],
-    'BiggerPockets': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌'],
-    'Stessa':        ['❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '❌', '✅', '❌'],
-    'Roofstock':     ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '✅', '❌'],
-    'DealCheck':     ['✅', '✅', '❌', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '🚧', '❌'],
-    'Mashvisor':     ['✅', '✅', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌'],
-    'Rentometer':    ['✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌'],
-    'Zilculator':    ['✅', '✅', '✅', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '❌', '❌']
+    'RentIntel': ['✅'] * 13 ,
+    'BiggerPockets': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', ],
+    'Stessa':        ['❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '❌', '✅', ],
+    'Roofstock':     ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '✅', ],
+    'DealCheck':     ['✅', '✅', '❌', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '🚧', ],
+    'Mashvisor':     ['✅', '✅', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', ],
+    'Rentometer':    ['✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '✅', ],
+    'Zilculator':    ['✅', '✅', '✅', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '❌', ]
     }
 
     styled = pd.DataFrame(comp_data).set_index('Feature')
@@ -249,54 +257,97 @@ elif page == "👋 Get Started":
         
        
         st.markdown("### 🧑‍🏫 **How This Works**")
-        st.markdown("""
-        This wizard will guide you through analyzing your first rental deal using our Smart Rental Analyzer. Each tool is designed to help you make better investment decisions. Below is a brief overview of each tool:
+    st.markdown("""
+This app helps you analyze rental deals, compare properties, project returns, and understand financial impact — even without an API or outside data source.
 
-        #### 📊 **Quick Deal Analyzer**
-        - **Purpose**: Evaluate the viability of a rental property.
-        - **What You’ll See**: ROI (Return on Investment), Cap Rate, and Annual Cash Flow.
-        - **How It Helps**: Provides a quick snapshot of the property's profitability.
+---
 
-        #### 💡 **Break-Even Calculator**
-        - **Purpose**: Find the minimum rent needed to cover all expenses.
-        - **What You’ll See**: Break-even rent, mortgage, maintenance, and other costs.
-        - **How It Helps**: Helps you understand the rent you need to make the property profitable.
+### 🔍 Core Tools
 
-        #### 📘 **Multi-Year ROI + Tax Insights**
-        - **Purpose**: See your investment’s performance over several years.
-        - **What You’ll See**: Cash flow, equity growth, ROI, and more.
-        - **How It Helps**: Visualizes the long-term financial health of your investment.
+#### 📊 **Quick Deal Analyzer**
+- **Purpose**: Quickly evaluate a rental deal with basic inputs.
+- **Outputs**: ROI, Cap Rate, Cash Flow, and a 0–100 Score.
+- **Extras**: Automatic tags (🔥 Hot Lead, etc.), suggestions, and a donut chart of monthly expenses.
 
-        #### 🏚 **Rehab & Refi Tools (Pro)**
-        - **Purpose**: Estimate the ROI for renovation and refinancing projects.
-        - **What You’ll See**: Rehab costs, after-repair value (ARV), and new ROI.
-        - **How It Helps**: Lets you analyze the benefits of renovating or refinancing.
+#### 💡 **Break-Even Calculator**
+- **Purpose**: Find the minimum rent needed to break even.
+- **Outputs**: Estimated break-even rent and cash flow chart.
+- **Why It Matters**: Helps you avoid cash-negative deals.
 
-        #### 🧪 **Advanced Analytics**
-        - **Purpose**: Make more informed decisions using market data and projections.
-        - **What You’ll See**: Conservative, base, and aggressive projections.
-        - **How It Helps**: Simulates various market conditions to predict the best and worst-case scenarios.
+#### 📘 **Multi-Year ROI + Tax Insights**
+- **Purpose**: Forecast performance over 1–30 years.
+- **Outputs**: Cash-on-cash ROI, equity growth, tax savings, IRR.
+- **Extras**: Assumptions are editable; includes pie chart of monthly expenses and CSV exports.
 
-        #### 🏘 **Property Comparison**
-        - **Purpose**: Compare multiple properties side-by-side.
-        - **What You’ll See**: Key metrics like ROI, cash flow, and cap rate for each property.
-        - **How It Helps**: Helps you compare the potential returns of multiple properties at once.
+---
 
-        #### 📈 **Monte Carlo Simulation**
-        - **Purpose**: Simulate uncertain outcomes to assess risk.
-        - **What You’ll See**: A distribution of ROI and IRR values.
-        - **How It Helps**: Shows you the range of possible returns, helping you understand the risk involved.
+### 🔧 Advanced Planning
 
-        #### 📖 **Help & Info**
-        - **Purpose**: Learn more about real estate terms and app methodology.
-        - **What You’ll See**: Definitions of key terms and how estimates are calculated.
-        - **How It Helps**: Provides transparency and clarity on how data and projections are derived.
+#### 🧪 **Advanced Analytics**
+- **Purpose**: Model different scenarios (conservative to aggressive).
+- **Outputs**: Year-by-year cash flow, ROI, and IRR projections.
+- **Why It Helps**: Test how different strategies affect returns.
 
-        ---
-        
-        ### Ready to dive in?
-        Click **Next** to get started with analyzing your first property!
-        """)
+#### 📈 **Monte Carlo Simulator**
+- **Purpose**: Run 100–2000 randomized simulations.
+- **Outputs**: Distribution of ROI and IRR based on rent, expenses, appreciation ranges.
+- **Why It Helps**: See best- and worst-case outcomes.
+
+#### 🏚 **Rehab & Refi Tools**
+- **Purpose**: Estimate ROI from renovations or refinancing.
+- **Outputs**: Post-rehab equity, refi loan terms, cash-out amounts.
+- **Why It Helps**: Decide if adding value or pulling cash out is worth it.
+
+---
+
+### 📋 Comparison & Tracking
+
+#### 🏘 **Property Comparison**
+- **Purpose**: Compare multiple deals side-by-side.
+- **Outputs**: ROI, Cap Rate, Cash Flow, and custom score for each.
+- **Why It Helps**: Choose the best deal based on numbers.
+
+#### 📂 **Deal History**
+- **Purpose**: Save & revisit your past deals.
+- **Extras**: Filter by tags or status, delete old ones, export grouped summaries to PDF.
+- **Includes**: Monthly expense breakdowns added to exports.
+
+#### 📊 **Deal Summary Comparison**
+- **Purpose**: Compare saved deals using emojis & metrics.
+- **Outputs**: Score, ROI, Cap Rate, and Cash Flow indicators.
+- **Why It Helps**: Fast visual comparison of your top choices.
+
+---
+
+### 👥 Screening & Affordability
+
+#### 👥 **Tenant Affordability Tool**
+- **Purpose**: Determine required income for a rent, or max rent for an income.
+- **Why It Helps**: Screen tenants or reverse-engineer target rents.
+- **Extras**: Adjustable rent-to-income ratio and period type.
+
+---
+
+### 📚 Education & Help
+
+#### 💸 **Tax Benefits**
+- **Purpose**: Learn what landlord tax deductions you qualify for.
+- **Includes**: IRS links, write-off tips, and audit-readiness advice.
+- **Why It Helps**: Keep more of your rental income.
+
+#### 📖 **Help & Info**
+- **Purpose**: Understand key real estate terms and how the app works.
+- **Includes**: Definitions, explanations, and methodology for all calculations.
+
+---
+### ✅ Suggested First Steps
+1. Run a deal through **📊 Quick Deal Analyzer**
+2. Use **📘 Multi-Year ROI** to see long-term potential
+3. Save the deal and compare it in **📂 Deal History**
+4. Use **👥 Tenant Affordability Tool** to estimate target tenant profile
+5. Explore other tools as needed
+""")
+
 
 
     st.markdown("""
@@ -386,7 +437,11 @@ elif page == "📊 Quick Deal Analyzer":
     prop_name = st.text_input("Property Name or Address", value="Untitled Deal")
     deal_type = st.selectbox("📂 Deal Type", ["Buy & Hold", "Fix & Flip", "BRRRR", "House Hack", "Wholesale", "Other"])
     notes = st.text_area("📝 Notes or Strategy", placeholder="Add notes, deal type, or plan (e.g., Fix & Flip, Buy & Hold, BRRRR)")
-
+    tags = st.multiselect(
+    "🏷️ Tags",
+    options=["🔥 Hot Lead", "✅ Under Contract", "🧊 Cold Lead", "💼 Refi", "🛠 Rehab", "📦 Archived"],
+    default=[]
+    )
     col1, col2 = st.columns(2)
     with col1:
         price = st.number_input("Purchase Price ($)", min_value=-1e6, value=250000.0)
@@ -394,6 +449,8 @@ elif page == "📊 Quick Deal Analyzer":
     with col2:
         expenses = st.number_input("Monthly Expenses ($)", min_value=-1e6, value=1400.0)
         down_pct = st.slider("Down Payment (%)", min_value=0.0, max_value=100.0, value=20.0, step=1.0)
+
+    auto_tags = tags.copy() if tags else []
 
     if st.button("🔍 Analyze Deal"):
         st.session_state.analyzed = True
@@ -420,7 +477,15 @@ elif page == "📊 Quick Deal Analyzer":
             "score": score,
         }
 
-        
+        if score >= 85 and "🔥 Hot Lead" not in auto_tags:
+            auto_tags.append("🔥 Hot Lead")
+        elif score < 50 and "🧊 Cold Lead" not in auto_tags:
+            auto_tags.append("🧊 Cold Lead")
+
+        if roi >= 15 and "💼 Refi" not in auto_tags:
+            auto_tags.append("💼 Refi")
+
+
         result = {
             "title": prop_name,
             "price": price,
@@ -431,9 +496,11 @@ elif page == "📊 Quick Deal Analyzer":
             "cf": annual_cf,
             "score": f"{score:.1f}",
             "type": deal_type,
-            "tags": [],
+            "tags": auto_tags, 
             "notes": notes,
             "status": "🔍 Reviewing"
+            
+
         }
 
         if "deals" not in st.session_state:
@@ -474,6 +541,8 @@ elif page == "📊 Quick Deal Analyzer":
                              f"{10 if res['cf'] > 0 else -10}"]
         }
         st.table(breakdown)
+
+
 
         st.subheader("💡 Suggestions to Improve Score")
         tips = []
@@ -546,6 +615,106 @@ Score Range:
         d3.metric("Cap Rate", f"{adj_cap:.1f}%", f"{adj_cap - res['cap']:+.1f}%")
         d4.metric("Score", f"{adj_score:.1f}", f"{adj_score - res['score']:+.1f}")
 
+        st.subheader("📊 Monthly Expense Breakdown")
+
+        # Editable Assumptions
+        with st.expander("⚙️ Adjust Assumptions"):
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                ti_pct = st.number_input("Taxes & Insurance (% of Price)", 0.0, 10.0, 1.25, 0.1)
+            with col2:
+                maint_pct = st.number_input("Maintenance (% of Rent)", 0.0, 50.0, 10.0, 1.0)
+            with col3:
+                mgmt_pct = st.number_input("Management (% of Rent)", 0.0, 50.0, 8.0, 1.0)
+            with col4:
+                vac_pct = st.number_input("Vacancy Loss (% of Rent)", 0.0, 50.0, 5.0, 1.0)
+
+        # Calculations
+        ti_month = price * (ti_pct / 100) / 12
+        maint = rent * (maint_pct / 100)
+        mgmt = rent * (mgmt_pct / 100)
+        vacancy = rent * (vac_pct / 100)
+
+        loan_amt = price * (1 - down_pct / 100)
+        mort_rate = 0.065 / 12  # fixed est. 6.5%
+        mortgage = loan_amt * mort_rate
+
+        total_exp = ti_month + maint + mgmt + vacancy + mortgage
+        cash_flow = rent - expenses - total_exp
+
+        labels = ["Mortgage (Est.)", "Taxes & Insurance", "Maintenance", "Management", "Vacancy Loss", "Cash Flow"]
+        values = [mortgage, ti_month, maint, mgmt, vacancy, max(0, cash_flow)]
+
+        pie_chart = go.Figure(data=[go.Pie(labels=labels, values=values, hole=0.4)])
+        pie_chart.update_layout(
+            title="Monthly Expense Breakdown",
+            template="plotly_dark",
+            margin=dict(l=30, r=30, t=40, b=30),
+        )
+
+        st.plotly_chart(pie_chart, use_container_width=True)
+
+        # Optional Text Export
+        st.markdown("### 🧾 Summary Table")
+        exp_df = pd.DataFrame({
+            "Category": labels,
+            "Amount ($/mo)": [f"${v:,.0f}" for v in values]
+        })
+        st.dataframe(exp_df, use_container_width=True)
+        csv_exp = export_csv_with_watermark(exp_df)
+        st.download_button("⬇️ Download Expense Breakdown (CSV)", csv_exp, "monthly_expense_breakdown.csv", "text/csv")
+
+
+# ───────────────────────────"👥 Tenant Affordability Tool"────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+elif page == "👥 Tenant Affordability Tool":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.header("👥 Tenant Affordability Tool")
+    st.caption("Check if a rent amount is affordable based on income or vice versa.")
+
+    st.markdown("### 🎯 Choose What to Calculate")
+    mode = st.radio("Select Mode", ["Required Income from Rent", "Max Rent from Income"], horizontal=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        ratio = st.slider("Rent-to-Income Ratio (%)", 10, 50, 30, step=1)
+    with col2:
+        period = st.radio("Period Type", ["Monthly", "Annual"], horizontal=True)
+
+    st.markdown("---")
+
+    if mode == "Required Income from Rent":
+        rent = st.number_input("Monthly Rent ($)", min_value=0.0, value=1800.0)
+        monthly_income = rent / (ratio / 100)
+        annual_income = monthly_income * 12
+
+        st.success(f"✅ Required Monthly Income: **${monthly_income:,.0f}**")
+        st.info(f"ℹ️ Annual Income Needed: **${annual_income:,.0f}**")
+
+    elif mode == "Max Rent from Income":
+        income = st.number_input(f"{period} Income ($)", min_value=0.0, value=60000.0)
+        if period == "Monthly":
+            max_rent = income * (ratio / 100)
+        else:
+            max_rent = (income / 12) * (ratio / 100)
+
+        st.success(f"✅ Affordable Rent: **${max_rent:,.0f}/mo**")
+
+    with st.expander("📘 What Is This?"):
+        st.markdown("""
+This tool helps you apply a common landlord rule:  
+> **Rent should not exceed 30% of gross income**
+
+- **Required Income from Rent**: How much a tenant should make to afford a given rent.
+- **Max Rent from Income**: What rent a tenant can afford based on their income.
+
+You can adjust the ratio for stricter or more lenient screening criteria.
+        """)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+
 
 # ─────────────────────────── BREAK-EVEN CALCULATOR ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "💡 Break-Even Calculator":
@@ -599,7 +768,9 @@ elif page == "💡 Break-Even Calculator":
             m=r*maint_pct/100; mg=r*mgmt_pct/100; vl=r*vac/100; exp=ti+m+mg+vl; cfs.append(r-(mortgage+exp))
         fig = plot_line_chart("Cash Flow vs Rent", rng.tolist(), {"Cash Flow": cfs})
         st.plotly_chart(fig, use_container_width=True)
-        csv=pd.DataFrame({"Rent":rng,"Cash Flow":cfs}).to_csv(index=False).encode()
+        df = pd.DataFrame({"Rent": rng, "Cash Flow": cfs})
+        watermark = f"# Exported by RentIntel on {datetime.now().strftime('%Y-%m-%d')}\n"
+        csv = (watermark + df.to_csv(index=False)).encode()
         st.download_button("⬇️ Download Cash Flow Table (CSV)",csv,"break_even_cash_flow.csv","text/csv")
     else:
         st.error("❌ No break-even rent found in range. Try adjusting inputs.")
@@ -732,7 +903,7 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
             "Equity ROI (Annualized) %": roi_equity_annualized,
             "Total ROI (Annualized) %": roi_total_annualized,
         }))
-        csv = df.to_csv(index=False).encode()
+        csv = export_csv_with_watermark(df)
         st.download_button("⬇️ Download ROI Projection (CSV)", csv, "roi_projection.csv", "text/csv")
 
     with st.expander("📉 Depreciation & After-Tax Cash Flow"):
@@ -818,8 +989,21 @@ elif page == "📂 Deal History":
             row("Cap Rate", f"{float(deal.get('cap', 0)):.1f}%")
             row("Score", f"{float(deal.get('score', 0)):.1f}/100")
             row("Status", deal.get("status", "—"))
-            tags = ", ".join(deal.get("tags", [])) or "—"
-            row("Tags", tags)
+            tag_colors = {
+              "🔥 Hot Lead": "#f43f5e",
+              "✅ Under Contract": "#22c55e",
+              "🧊 Cold Lead": "#60a5fa",
+              "💼 Refi": "#eab308",
+              "🛠 Rehab": "#d97706",
+              "📦 Archived": "#9ca3af"
+             }
+            tag_html = ""
+            for tag in deal.get("tags", []):
+                  color = tag_colors.get(tag, "#6b7280")
+                  tag_html += f"<span style='background:{color};color:white;padding:2px 8px;border-radius:6px;margin-right:6px;font-size:12px;'>{tag}</span>"
+
+            st.markdown(tag_html or "—", unsafe_allow_html=True)
+
             notes = deal.get("notes", "")
             if notes:
                 pdf.multi_cell(0, 8, latin1(f"Notes: {notes}"))
@@ -1133,7 +1317,9 @@ elif page == "🏘 Property Comparison":
         if st.button("📄 Export Comparison to PDF"):
             path = comparison_to_pdf(comparison_df)
             with open(path, "rb") as f:
-                st.download_button("⬇️ Download Property Comparison", data=f, file_name=path, mime="application/pdf")
+               csv = export_csv_with_watermark(comparison_df)
+               st.download_button("⬇️ Download Comparison Table", csv, "comparison.csv", "text/csv")
+
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1257,7 +1443,8 @@ elif page == "🧪 Advanced Analytics":
 
     csv = df.copy()
     csv["IRR"] = f"{irr:.1f}%"
-    st.download_button("⬇️ Download Yearly ROI Table (CSV)", csv.to_csv(index=False).encode(), "advanced_roi_projection.csv", "text/csv")
+    csv_bytes = export_csv_with_watermark(csv)
+    st.download_button("⬇️ Download Yearly ROI Table (CSV)", csv_bytes, "advanced_roi_projection.csv", "text/csv")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
