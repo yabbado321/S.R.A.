@@ -9,6 +9,24 @@ import requests
 
 from datetime import datetime
 
+st.markdown("""
+<script>
+  function detectDevice() {
+      let width = window.innerWidth;
+      if (width <= 768) {
+          document.body.classList.add('mobile');
+          document.body.classList.remove('desktop');
+      } else {
+          document.body.classList.add('desktop');
+          document.body.classList.remove('mobile');
+      }
+  }
+
+  window.addEventListener('resize', detectDevice);
+  window.onload = detectDevice;
+</script>
+""", unsafe_allow_html=True)
+
 def export_csv_with_watermark(df):
     watermark = f"# Exported by RentIntel on {datetime.now().strftime('%Y-%m-%d')}\n"
     return (watermark + df.to_csv(index=False)).encode()
