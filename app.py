@@ -150,6 +150,12 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("### 📬 Contact Me")
 st.markdown("**Email:** [smart-rental-analyzer@outlook.com](mailto:smart-rental-analyzer@outlook.com)")
+st.markdown("""
+Welcome to RentIntel! Here's a quick overview of what the app offers.  
+For more advanced guides and tips, check out the link below:
+
+[🔗 Quick Guide: How to Use RentIntel - Full Tutorial](https://rentintel-quick-guide.netlify.app/)
+""", unsafe_allow_html=True)
 
 
 
