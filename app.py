@@ -9,6 +9,7 @@ import requests
 
 from datetime import datetime
 
+
 st.markdown("""
 <script>
   function detectDevice() {
@@ -635,7 +636,7 @@ Score Range:
 
         st.subheader("📊 Monthly Expense Breakdown")
 
-        # Editable Assumptions
+        
         with st.expander("⚙️ Adjust Assumptions"):
             col1, col2, col3, col4 = st.columns(4)
             with col1:
@@ -647,14 +648,13 @@ Score Range:
             with col4:
                 vac_pct = st.number_input("Vacancy Loss (% of Rent)", 0.0, 50.0, 5.0, 1.0)
 
-        # Calculations
         ti_month = price * (ti_pct / 100) / 12
         maint = rent * (maint_pct / 100)
         mgmt = rent * (mgmt_pct / 100)
         vacancy = rent * (vac_pct / 100)
 
         loan_amt = price * (1 - down_pct / 100)
-        mort_rate = 0.065 / 12  # fixed est. 6.5%
+        mort_rate = 0.065 / 12  
         mortgage = loan_amt * mort_rate
 
         total_exp = ti_month + maint + mgmt + vacancy + mortgage
@@ -672,7 +672,7 @@ Score Range:
 
         st.plotly_chart(pie_chart, use_container_width=True)
 
-        # Optional Text Export
+        
         st.markdown("### 🧾 Summary Table")
         exp_df = pd.DataFrame({
             "Category": labels,
@@ -824,7 +824,7 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
         exp_g = st.slider("Expense Growth (%/yr)", 0.0, 10.0, 2.0, 0.5)
         appr = st.slider("Appreciation (%/yr)", 0.0, 10.0, 3.0, 0.5)
 
-    # New inputs for tax & sale
+   
     st.markdown("---")
     st.subheader("🔧 Tax & Sale Inputs")
     land_pct = st.slider("Land Value Percentage (%)", 0, 50, 20, key="roi_land_pct")
@@ -853,29 +853,29 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
     for yr in range(1, years + 1):
         annual_cf = (r - e - mortgage) * 12
 
-        # Amortize loan balance monthly for the year
+        
         for _ in range(12):
             interest = balance * mrate
             principal = mortgage - interest
             balance -= principal
 
-        # Appreciation applies at end of year
+        
         value *= (1 + appr / 100)
 
-        # Equity gain excludes initial down payment
+        
         equity = (value - balance) - dp
 
-        # Depreciation calculation (building value / 27.5 years)
+        
         building_value = price * (1 - land_pct / 100)
         annual_depr = building_value / 27.5
 
-        # Tax savings from depreciation (simplified)
+        
         tax_savings = annual_depr * tax_rate / 100
 
-        # After-tax cash flow = cash flow + tax savings (simplified)
+        
         after_tax_cf = annual_cf + tax_savings
 
-        # ROI calculations
+        
         cash_on_cash = (annual_cf / dp) * 100 if dp != 0 else 0
         cash_on_cash_after_tax = (after_tax_cf / dp) * 100 if dp != 0 else 0
         equity_annualized = (equity / dp) * 100 / yr if dp != 0 else 0
@@ -901,7 +901,7 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
         equity_list.append(equity)
         cash_flow_list.append(annual_cf)
 
-        # Increase rent and expenses for next year
+       
         r *= (1 + rent_g / 100)
         e *= (1 + exp_g / 100)
 
@@ -931,19 +931,16 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
         st.markdown(f"**After-Tax Cash Flow Example (Year 1):** ${after_tax_cf_list[0]:,.0f}")
 
     with st.expander("📈 IRR Calculation"):
-        # Build cash flow array for IRR: initial investment (negative), then yearly after-tax cash flow,
-        # then sale proceeds at sale_year with equity + sale appreciation minus 6% selling costs
 
         initial_outflow = -dp
         cash_flows = [initial_outflow]
-        # Use after-tax cash flow for each year except sale year
+        
         for y in range(1, years + 1):
             if y == sale_year:
-                # Sale proceeds = equity at sale year + remaining equity from principal + appreciation
-                # subtract 6% selling costs on property value at sale
+
                 prop_value_at_sale = price * ((1 + appr / 100) ** y)
                 selling_costs = prop_value_at_sale * 0.06
-                net_sale_proceeds = equity_list[y-1] + dp - selling_costs  # include original down payment back
+                net_sale_proceeds = equity_list[y-1] + dp - selling_costs  
                 total_cash_flow = after_tax_cf_list[y-1] + net_sale_proceeds
                 cash_flows.append(total_cash_flow)
             else:
@@ -1069,7 +1066,7 @@ elif page == "📂 Deal History":
                         json.dump(st.session_state["deals"], f, indent=2)
                     st.rerun()
 
-        # Export button per category
+       
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
             generate_category_pdf(category_deals, dtype, tmpfile.name)
             with open(tmpfile.name, "rb") as f:
@@ -1385,27 +1382,26 @@ elif page == "🧪 Advanced Analytics":
     years = list(range(1, exit_year + 1))
 
     roi_list, equity_list, cf_list, table_rows = [], [], [], []
-    cash_flows = [-down]  # Initial investment as negative cash flow
-
+    cash_flows = [-down]  
     for y in years:
-        # Annual cash flow calculation
+        
         cf = (r - e - mortgage) * 12
 
         principal_paid_year = 0
-        # Monthly amortization
+        
         for _ in range(12):
             interest = balance * m_rate
             principal = mortgage - interest
             balance -= principal
             principal_paid_year += principal
 
-        # Update property value with appreciation
+       
         val *= 1 + appr / 100
 
-        # Equity = current value minus remaining loan balance
+        
         equity = val - balance
 
-        # ROI calculation (total return relative to down payment)
+       
         roi = ((cf + (equity - down)) / down) * 100 if down != 0 else 0
 
         roi_list.append(roi)
@@ -1422,17 +1418,17 @@ elif page == "🧪 Advanced Analytics":
 
         cash_flows.append(cf)
 
-        # Increase rent and expenses for next year
+        
         r *= 1 + rent_g / 100
         e *= 1 + exp_g / 100
 
-    # Calculate net proceeds from sale at exit
+    
     sale_price = val
     selling_costs = 0.06 * sale_price
     net_sale_proceeds = sale_price - selling_costs - balance
 
-    # Append sale proceeds to cash flows for IRR calc
-    cash_flows[-1] += net_sale_proceeds  # Add sale proceeds to last year cash flow
+    
+    cash_flows[-1] += net_sale_proceeds  
 
     total_cash_flow = sum(cf_list)
     total_profit = net_sale_proceeds + total_cash_flow
