@@ -9,6 +9,183 @@ import requests
 
 from datetime import datetime
 
+def sanitize_text(text):
+    if text:
+       
+        text = text.replace("🏠", "[House]")
+    return text
+
+def portfolio_pdf(df, filename="portfolio_summary.pdf"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, latin1("Portfolio Summary"), ln=True)
+    pdf.ln(2)
+
+    pdf.set_font("Arial", "", 12)
+    total_cf = float(df["Cash Flow ($/yr)"].sum())
+    avg_roi = df["ROI (%)"].mean(skipna=True)
+    avg_cap = df["Cap Rate (%)"].mean(skipna=True)
+    n_props = len(df)
+
+    pdf.cell(0, 8, latin1(f"Properties: {n_props}"), ln=True)
+    pdf.cell(0, 8, latin1(f"Total Annual Cash Flow: ${total_cf:,.0f}"), ln=True)
+    if not np.isnan(avg_roi):
+        pdf.cell(0, 8, latin1(f"Average ROI: {avg_roi:.1f}%"), ln=True)
+    if not np.isnan(avg_cap):
+        pdf.cell(0, 8, latin1(f"Average Cap Rate: {avg_cap:.1f}%"), ln=True)
+
+    pdf.ln(4)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(0, 8, latin1("Properties"), ln=True)
+    pdf.set_font("Arial", "", 11)
+
+    for _, r in df.iterrows():
+        title = r.get("Property", "-")
+        cf = float(r.get("Cash Flow ($/yr)", 0.0) or 0.0)
+        roi = r.get("ROI (%)", np.nan)
+        cap = r.get("Cap Rate (%)", np.nan)
+        sc  = r.get("Score", np.nan)
+
+        
+        pdf.cell(0, 7, latin1(f"- {title}"), ln=True)
+
+        line = f"   CF: ${cf:,.0f}/yr"
+        if not pd.isna(roi):
+            line += f"  |  ROI: {float(roi):.1f}%"
+        if not pd.isna(cap):
+            line += f"  |  Cap: {float(cap):.1f}%"
+        if not pd.isna(sc):
+            line += f"  |  Score: {float(sc):.1f}"
+
+        pdf.cell(0, 7, latin1(line), ln=True)
+
+    pdf.output(filename)
+    return filename
+
+
+def comparison_to_pdf(df, filename="property_comparison.pdf", preferred_ttf="DejaVuSansCondensed.ttf"):
+    """
+    Create a Property Comparison PDF from a DataFrame with columns:
+      "Property Name", "Purchase Price", "Monthly Rent", "Monthly Expenses",
+      "Cash Flow", "Cap Rate", "ROI", "Score"
+
+    - Uses a Unicode TTF font if available (recommended).
+    - Falls back to Arial (latin-1) and uses hyphens instead of bullets in fallback mode.
+    - Returns the output filename.
+    """
+    from fpdf import FPDF
+    import os
+    import math
+
+    def ensure_unicode_font(pdf: FPDF, ttf_path: str):
+        """
+        Try to register a Unicode TTF; return (font_name, unicode_ok).
+        On fallback, sets Arial (core) and returns ('Arial', False).
+        """
+        if os.path.exists(ttf_path):
+            try:
+                pdf.add_font('DejaVu', '', ttf_path, uni=True)
+                pdf.set_font('DejaVu', '', 12)
+                return ('DejaVu', True)
+            except Exception:
+                pass
+        pdf.set_font('Arial', '', 12)
+        return ('Arial', False)
+
+    def fmt_value(key, val):
+        """Consistent formatting for numbers by key."""
+        # Handle None/NaN
+        if val is None or (isinstance(val, float) and math.isnan(val)):
+            return "-"
+        # Percent keys
+        if key in ("Cap Rate", "ROI"):
+            try:
+                return f"{float(val):.1f}%"
+            except Exception:
+                return str(val)
+        # Score (numeric but not %)
+        if key == "Score":
+            try:
+                return f"{float(val):.1f}"
+            except Exception:
+                return str(val)
+        # Currency-ish numeric fields
+        if key in ("Purchase Price", "Monthly Rent", "Monthly Expenses", "Cash Flow"):
+            try:
+                return f"${float(val):,.2f}"
+            except Exception:
+                return str(val)
+        # Fallback
+        return str(val)
+
+    # Build PDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=False)  # we'll manage breaks to keep section headers together
+    pdf.add_page()
+    font_name, unicode_ok = ensure_unicode_font(pdf, preferred_ttf)
+
+    # Title
+    pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 16)
+    pdf.cell(0, 10, "Property Comparison Report", ln=True)
+    pdf.ln(4)
+
+    # Body font
+    pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
+
+    # Keys to print per property
+    keys = [
+        "Purchase Price", "Monthly Rent", "Monthly Expenses",
+        "Cash Flow", "Cap Rate", "ROI", "Score"
+    ]
+
+    # Optional: sanitize function if you already have one in your app
+    def maybe_sanitize(text):
+        # If you defined sanitize_text earlier in your app, use it to handle emojis, etc.
+        try:
+            return sanitize_text(text)
+        except NameError:
+            return text
+
+    # Helper: add a soft page break if near bottom
+    def maybe_page_break(min_space_needed=40):
+        if pdf.get_y() > (297 - 10 - min_space_needed):  # A4 ~ 297mm; bottom margin ~10
+            pdf.add_page()
+            # Re-apply font after new page
+            if unicode_ok:
+                pdf.set_font(font_name, '', 10)
+            else:
+                pdf.set_font('Arial', '', 10)
+
+    # Iterate properties
+    for _, row in df.iterrows():
+        maybe_page_break(min_space_needed=48)
+
+        prop_name = row.get("Property Name", "-")
+        prop_name = maybe_sanitize(str(prop_name))
+
+        # Row header strip
+        pdf.set_fill_color(240, 240, 240)
+        bullet = "• " if unicode_ok else "- "
+        pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 11)
+        pdf.cell(0, 8, f"{bullet}{prop_name}", ln=True, fill=True)
+
+        # Values block
+        pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
+        for key in keys:
+            val = row.get(key, "-")
+            disp = fmt_value(key, val)
+            # Label
+            pdf.cell(60, 8, f"{key}:", border=0)
+            # Value
+            pdf.cell(0, 8, str(maybe_sanitize(disp)), ln=True)
+
+        pdf.ln(3)
+
+    pdf.output(filename)
+    return filename
+
+
 
 st.markdown("""
 <script>
@@ -174,8 +351,9 @@ page = st.selectbox("Navigate to:", [
     "👥 Tenant Affordability Tool",
     "💡 Break-Even Calculator",
     "📘 Multi-Year ROI + Tax Insights",
-    "📂 Deal History",
     "🏘 Property Comparison",
+    "📊 Portfolio Dashboard",
+    "📂 Deal History",
     "🧪 Advanced Analytics",
     "📈 Monte Carlo Simulator",
     "🏚 Rehab & Refi",
@@ -188,8 +366,9 @@ page = st.selectbox("Navigate to:", [
     "👥 Tenant Affordability Tool",
     "💡 Break-Even Calculator",
     "📘 Multi-Year ROI + Tax Insights",
-    "📂 Deal History",
     "🏘 Property Comparison",
+    "📊 Portfolio Dashboard",
+    "📂 Deal History",
     "🧪 Advanced Analytics",
     "📈 Monte Carlo Simulator",
     "🏚 Rehab & Refi",
@@ -235,30 +414,54 @@ if page == "🏠 Home":
     st.markdown("### 🆚 How We Stack Up Against Competitors")
 
     comp_data = {
-    'Feature': [
-        'Quick Deal Analyzer',
-        'Multi-Year ROI + Tax Insights',
-        'Break-Even Calculator',
-        'Property Comparison',
-        'Advanced Analytics',
-        'Monte Carlo Simulator',
-        'Rehab & Refi Tools',
-        'Tax Benefits Explorer',
-        'CSV Export',
-        'PDF Export',
-        'Deal History & Notes',
-        'Score System (0–100 w/ Tips)',
-        'Mobile Friendly',
-    ],
-    'RentIntel': ['✅'] * 13 ,
-    'BiggerPockets': ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', ],
-    'Stessa':        ['❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '❌', '✅', ],
-    'Roofstock':     ['✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '✅', '✅', '❌', '❌', '✅', ],
-    'DealCheck':     ['✅', '✅', '❌', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '🚧', ],
-    'Mashvisor':     ['✅', '✅', '❌', '❌', '✅', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '✅', ],
-    'Rentometer':    ['✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '✅', ],
-    'Zilculator':    ['✅', '✅', '✅', '✅', '❌', '❌', '❌', '❌', '✅', '❌', '❌', '❌', '❌', ]
+        'Feature': [
+            'Quick Deal Analyzer',
+            'Multi-Year ROI + Tax Insights',
+            'Break-Even Calculator',
+            'Property Comparison (Manual + Auto)',
+            'Portfolio Dashboard (Aggregated Metrics)',
+            'Advanced Analytics (Scenarios)',
+            'Monte Carlo Simulator',
+            'Rehab & Refi Tools',
+            'Tenant Affordability Tool',
+            'Tax Benefits Explorer',
+            'Deal History & Snapshots',
+            'Score System (0–100 w/ Tips)',
+            'CSV Export',
+            'PDF Export',
+            'Mobile Friendly / PWA'
+        ],
+        'RentIntel': ['✅'] * 15,
+        'BiggerPockets': [
+            '✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌',
+            '❌', '❌', '❌', '✅', '❌', '✅'
+        ],
+        'Stessa': [
+            '❌', '✅', '❌', '❌', '❌', '❌', '❌', '✅', '❌',
+            '✅', '❌', '❌', '✅', '❌', '✅'
+        ],
+        'Roofstock': [
+            '✅', '✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌',
+            '❌', '❌', '❌', '✅', '✅', '✅'
+        ],
+        'DealCheck': [
+            '✅', '✅', '❌', '✅', '❌', '❌', '❌', '❌', '❌',
+            '❌', '❌', '❌', '✅', '❌', '🚧'
+        ],
+        'Mashvisor': [
+            '✅', '✅', '❌', '❌', '✅', '❌', '❌', '❌', '❌',
+            '❌', '❌', '❌', '✅', '❌', '✅'
+        ],
+        'Rentometer': [
+            '✅', '❌', '❌', '❌', '❌', '❌', '❌', '❌', '❌',
+            '❌', '❌', '❌', '❌', '❌', '✅'
+        ],
+        'Zilculator': [
+            '✅', '✅', '✅', '✅', '❌', '❌', '❌', '❌', '❌',
+            '❌', '❌', '❌', '✅', '❌', '❌'
+        ]
     }
+
 
     styled = pd.DataFrame(comp_data).set_index('Feature')
     st.dataframe(styled, use_container_width=True)
@@ -974,6 +1177,302 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
+#---------------------------📊 Portfolio Dashboard----------------------------------------------------
+elif page == "📊 Portfolio Dashboard":
+    import os
+    from fpdf import FPDF
+
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.header("📊 Portfolio Dashboard")
+
+    # ─────────────────────────── Helpers ───────────────────────────
+    def safe_float(x, default=np.nan):
+        if x is None:
+            return default
+        s = str(x).strip().replace(",", "")
+        s = s.replace("%", "")
+        try:
+            return float(s)
+        except:
+            return default
+
+    def build_portfolio_df(deals):
+        rows = []
+        for d in deals:
+            rows.append({
+                "Property": d.get("title", "-"),
+                "Type": d.get("type", "-"),
+                "Price": safe_float(d.get("price"), 0.0),
+                "Rent": safe_float(d.get("rent"), 0.0),
+                "Expenses": safe_float(d.get("expenses"), 0.0),
+                "Cash Flow ($/yr)": safe_float(d.get("cf"), 0.0),
+                "ROI (%)": safe_float(d.get("roi")),
+                "Cap Rate (%)": safe_float(d.get("cap")),
+                "Score": safe_float(d.get("score")),
+                "Tags": d.get("tags", []),
+                "Status": d.get("status", "—"),
+            })
+        df = pd.DataFrame(rows)
+        if not df.empty:
+            df["Cash Flow ($/mo)"] = df["Cash Flow ($/yr)"] / 12.0
+            df["Tags (text)"] = df["Tags"].apply(lambda t: ", ".join(t) if isinstance(t, list) else str(t))
+        return df
+
+    def ensure_unicode_font(pdf: FPDF, preferred_ttf="DejaVuSansCondensed.ttf"):
+        """
+        Try to register and use a Unicode TTF font.
+        If not found, fall back to core Arial (latin-1) but also degrade text a bit so it doesn't crash.
+        Returns a tuple: (font_name_used, unicode_ok: bool)
+        """
+        if os.path.exists(preferred_ttf):
+            try:
+                pdf.add_font('DejaVu', '', preferred_ttf, uni=True)
+                pdf.set_font('DejaVu', '', 12)
+                return ('DejaVu', True)
+            except Exception:
+                pass
+        
+        pdf.set_font('Arial', '', 12)
+        return ('Arial', False)
+
+    def portfolio_pdf_unicode(df, filename="portfolio_summary.pdf"):
+        """
+        Unicode-capable PDF summary using a TTF font when available.
+        If the font is missing, we’ll fall back to Arial and avoid bullets/emojis.
+        """
+        pdf = FPDF()
+        pdf.add_page()
+        font_name, unicode_ok = ensure_unicode_font(pdf)
+
+        
+        if unicode_ok:
+            pdf.set_font(font_name, '', 16)
+            pdf.set_font_size(16)
+            pdf.cell(0, 10, "Portfolio Summary", ln=True)
+        else:
+            pdf.set_font('Arial', 'B', 16)
+            pdf.cell(0, 10, "Portfolio Summary (Basic Font Mode)", ln=True)
+        pdf.ln(2)
+
+        
+        pdf.set_font(font_name if unicode_ok else 'Arial', '', 12)
+        total_cf = float(df["Cash Flow ($/yr)"].sum())
+        avg_roi = df["ROI (%)"].mean(skipna=True)
+        avg_cap = df["Cap Rate (%)"].mean(skipna=True)
+        n_props = len(df)
+
+        pdf.cell(0, 8, f"Properties: {n_props}", ln=True)
+        pdf.cell(0, 8, f"Total Annual Cash Flow: ${total_cf:,.0f}", ln=True)
+        if not np.isnan(avg_roi):
+            pdf.cell(0, 8, f"Average ROI: {avg_roi:.1f}%", ln=True)
+        if not np.isnan(avg_cap):
+            pdf.cell(0, 8, f"Average Cap Rate: {avg_cap:.1f}%", ln=True)
+
+        pdf.ln(4)
+        if unicode_ok:
+            pdf.set_font(font_name, '', 12)
+            pdf.cell(0, 8, "Properties", ln=True)
+            pdf.set_font(font_name, '', 11)
+        else:
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 8, "Properties", ln=True)
+            pdf.set_font('Arial', '', 11)
+
+        
+        for _, r in df.iterrows():
+            title = r.get("Property", "-")
+            
+            if 'sanitize_text' in globals():
+                title = sanitize_text(title)
+
+            cf = float(r.get("Cash Flow ($/yr)", 0.0) or 0.0)
+            roi = r.get("ROI (%)", np.nan)
+            cap = r.get("Cap Rate (%)", np.nan)
+            sc  = r.get("Score", np.nan)
+
+           
+            lead = "• " if unicode_ok else "- "
+            pdf.cell(0, 7, f"{lead}{title}", ln=True)
+
+            line = f"   CF: ${cf:,.0f}/yr"
+            if not pd.isna(roi):
+                line += f"  |  ROI: {float(roi):.1f}%"
+            if not pd.isna(cap):
+                line += f"  |  Cap: {float(cap):.1f}%"
+            if not pd.isna(sc):
+                line += f"  |  Score: {float(sc):.1f}"
+
+            pdf.cell(0, 7, line, ln=True)
+
+        pdf.output(filename)
+        return filename
+
+    # ─────────────────────────── Load deals ───────────────────────────
+    deals = st.session_state.get("deals", [])
+    if not deals:
+        st.info("No deals saved yet. Add one in **📊 Quick Deal Analyzer**, then return here.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.stop()
+
+    df_all = build_portfolio_df(deals)
+
+    # ─────────────────────────── Filters ───────────────────────────
+    st.subheader("🔎 Filters")
+    colf1, colf2, colf3 = st.columns([2, 2, 2])
+    with colf1:
+        all_types = sorted(list({d.get("type", "Other") for d in deals}))
+        sel_types = st.multiselect("Deal Types", options=all_types, default=all_types)
+
+    with colf2:
+        all_tags = sorted(list({t for d in deals for t in d.get("tags", [])}))
+        sel_tags = st.multiselect("Tags", options=all_tags, default=all_tags if all_tags else [])
+
+    with colf3:
+        name_query = st.text_input("Search by Property Name", value="").strip().lower()
+
+    colr1, colr2, colr3 = st.columns(3)
+    with colr1:
+        roi_min, roi_max = st.slider("ROI Range (%)", -50.0, 100.0, (-50.0, 100.0))
+    with colr2:
+        cap_min, cap_max = st.slider("Cap Rate Range (%)", -10.0, 20.0, (-10.0, 20.0))
+    with colr3:
+        score_min = st.slider("Min Score", 0.0, 100.0, 0.0)
+
+    df = df_all.copy()
+    if sel_types:
+        df = df[df["Type"].isin(sel_types)]
+    if sel_tags:
+        df = df[df["Tags"].apply(lambda tags: any(t in sel_tags for t in tags) if isinstance(tags, list) else False)]
+    if name_query:
+        df = df[df["Property"].str.lower().str.contains(name_query)]
+
+    def in_range(x, lo, hi):
+        if pd.isna(x):
+            return False
+        return (x >= lo) and (x <= hi)
+
+    df = df[df["ROI (%)"].apply(lambda x: in_range(x, roi_min, roi_max))]
+    df = df[df["Cap Rate (%)"].apply(lambda x: in_range(x, cap_min, cap_max))]
+    df = df[df["Score"].fillna(0) >= score_min]
+
+    if df.empty:
+        st.warning("No properties match your filters.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.stop()
+
+    # ─────────────────────────── Summary bar ───────────────────────────
+    total_cf = df["Cash Flow ($/yr)"].sum()
+    avg_roi = df["ROI (%)"].mean(skipna=True)
+    avg_cap = df["Cap Rate (%)"].mean(skipna=True)
+    n_props = len(df)
+
+    render_summary_bar(
+        "🏘 Portfolio Overview",
+        [
+            ("# of Properties", f"{n_props}"),
+            ("Total Annual Cash Flow", f"${total_cf:,.0f}"),
+            ("Avg ROI", f"{avg_roi:.1f}%" if not np.isnan(avg_roi) else "—"),
+            ("Avg Cap Rate", f"{avg_cap:.1f}%" if not np.isnan(avg_cap) else "—"),
+        ],
+    )
+
+    # ─────────────────────────── Charts ───────────────────────────
+    st.subheader("📈 Portfolio Charts")
+
+    
+    with st.expander("Cash Flow by Property (Annual)", expanded=True):
+        bar = go.Figure()
+        bar.add_trace(go.Bar(
+            x=df["Property"],
+            y=df["Cash Flow ($/yr)"],
+            name="Annual Cash Flow",
+        ))
+        bar.update_layout(
+            title="Annual Cash Flow by Property",
+            plot_bgcolor="#18181b",
+            paper_bgcolor="#18181b",
+            font_color="#f3f3f3",
+            xaxis=dict(gridcolor="#333"),
+            yaxis=dict(gridcolor="#333"),
+            margin=dict(l=30, r=30, t=40, b=30),
+        )
+        st.plotly_chart(bar, use_container_width=True)
+
+    
+    with st.expander("ROI vs Cap Rate (Bubble = Cash Flow)", expanded=True):
+        scatter = go.Figure()
+        sizes = np.interp(
+            df["Cash Flow ($/yr)"].values,
+            (df["Cash Flow ($/yr)"].min(), df["Cash Flow ($/yr)"].max()),
+            (10, 40)
+        ) if len(df) > 1 else [20] * len(df)
+        scatter.add_trace(go.Scatter(
+            x=df["ROI (%)"], y=df["Cap Rate (%)"],
+            mode="markers+text",
+            text=df["Property"],
+            textposition="top center",
+            marker=dict(size=sizes),
+            name="Properties",
+        ))
+        scatter.update_layout(
+            title="ROI vs Cap Rate",
+            plot_bgcolor="#18181b",
+            paper_bgcolor="#18181b",
+            font_color="#f3f3f3",
+            xaxis=dict(title="ROI (%)", gridcolor="#333"),
+            yaxis=dict(title="Cap Rate (%)", gridcolor="#333"),
+            margin=dict(l=30, r=30, t=40, b=30),
+        )
+        st.plotly_chart(scatter, use_container_width=True)
+
+    
+    with st.expander("Portfolio Composition (Cash Flow Share)", expanded=False):
+        pie = go.Figure(data=[go.Pie(
+            labels=df["Property"],
+            values=df["Cash Flow ($/yr)"].clip(lower=0.0),  
+            hole=0.4
+        )])
+        pie.update_layout(
+            title="Share of Total Annual Cash Flow",
+            template="plotly_dark",
+            margin=dict(l=30, r=30, t=40, b=30),
+        )
+        st.plotly_chart(pie, use_container_width=True)
+
+    # ─────────────────────────── Table + Sorting ───────────────────────────
+    st.subheader("📋 Properties")
+    sort_col = st.selectbox(
+        "Sort by",
+        ["Property", "ROI (%)", "Cap Rate (%)", "Cash Flow ($/yr)", "Score", "Type"],
+        index=1
+    )
+    sort_dir = st.radio("Order", ["Descending", "Ascending"], horizontal=True, index=0)
+    df_sorted = df.sort_values(by=sort_col, ascending=(sort_dir == "Ascending"), kind="mergesort")
+
+    view_cols = ["Property", "Type", "Cash Flow ($/yr)", "Cash Flow ($/mo)", "ROI (%)", "Cap Rate (%)", "Score", "Status", "Tags (text)"]
+    st.dataframe(df_sorted[view_cols], use_container_width=True)
+
+    # ─────────────────────────── Exports ───────────────────────────
+    st.subheader("⬇ Export")
+    colx1, colx2 = st.columns(2)
+
+    with colx1:
+        csv_bytes = export_csv_with_watermark(df_sorted[view_cols])
+        st.download_button("⬇ Download Portfolio CSV", csv_bytes, "portfolio_summary.csv", "text/csv")
+
+    with colx2:
+        
+        filename = portfolio_pdf_unicode(df_sorted[["Property", "Cash Flow ($/yr)", "ROI (%)", "Cap Rate (%)", "Score"]].copy())
+        with open(filename, "rb") as f:
+            st.download_button(
+                label="📄 Download Portfolio PDF",
+                data=f.read(),
+                file_name="portfolio_summary.pdf",
+                mime="application/pdf",
+            )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ──────────────────────────── DEAL HISTORY ────────────────────────────
 
@@ -1237,113 +1736,196 @@ This tool helps you **quantify uncertainty** and better understand how your assu
         st.markdown("</div>", unsafe_allow_html=True)
 
 
-
 # ─────────────────────────── PROPERTY COMPARISON ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🏘 Property Comparison":
-    import pandas as pd
+    import os
     from fpdf import FPDF
 
-    def comparison_to_pdf(df):
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.header("🏘 Property Comparison")
+
+    # ──────────── Helpers ────────────
+    def ensure_unicode_font(pdf: FPDF, ttf_path="DejaVuSansCondensed.ttf"):
+        """Try to register a Unicode TTF font; fallback to Arial if missing."""
+        if os.path.exists(ttf_path):
+            try:
+                pdf.add_font('DejaVu', '', ttf_path, uni=True)
+                pdf.set_font('DejaVu', '', 12)
+                return ('DejaVu', True)
+            except:
+                pass
+        pdf.set_font('Arial', '', 12)
+        return ('Arial', False)
+
+    def comparison_to_pdf(df, filename="property_comparison.pdf"):
+        """Export property comparison table to a PDF (Unicode‑safe)."""
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
+        font_name, unicode_ok = ensure_unicode_font(pdf)
+
+        # Title
+        pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 16)
         pdf.cell(0, 10, "Property Comparison Report", ln=True)
         pdf.ln(5)
 
-        pdf.set_font("Arial", '', 10)
-        for idx, row in df.iterrows():
+        pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
+        bullet = "• " if unicode_ok else "- "
+        keys = [
+            "Purchase Price", "Monthly Rent", "Monthly Expenses",
+            "Cash Flow", "Cap Rate", "ROI", "Score"
+        ]
+
+        for _, row in df.iterrows():
+            prop_name = str(row.get("Property Name", "-"))
+            if "sanitize_text" in globals():
+                prop_name = sanitize_text(prop_name)
+
+            # Property header row
             pdf.set_fill_color(240, 240, 240)
-            pdf.cell(0, 8, f"🏠 {row['Property Name']}", ln=True, fill=True)
-            for key in ["Purchase Price", "Monthly Rent", "Monthly Expenses", "Cash Flow", "Cap Rate", "ROI", "Score"]:
-                val = row.get(key, '-')
+            pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 11)
+            pdf.cell(0, 8, f"{bullet}{prop_name}", ln=True, fill=True)
+
+            # Metrics rows
+            pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
+            for key in keys:
+                val = row.get(key, "-")
+                # Format numbers nicely
                 if isinstance(val, float):
-                    val = f"{val:,.2f}" if not key.endswith("Rate") and key != "Score" else f"{val:.1f}%"
+                    if key in ["Cap Rate", "ROI"]:
+                        val = f"{val:.1f}%"
+                    elif key == "Score":
+                        val = f"{val:.1f}"
+                    else:
+                        val = f"${val:,.2f}"
                 elif isinstance(val, int):
-                    val = f"${val:,}" if "Price" in key or "Rent" in key or "Expenses" in key or "Cash Flow" in key else str(val)
+                    if key in ["Purchase Price", "Monthly Rent", "Monthly Expenses", "Cash Flow"]:
+                        val = f"${val:,}"
                 pdf.cell(60, 8, f"{key}:", border=0)
                 pdf.cell(0, 8, str(val), ln=True)
             pdf.ln(4)
 
-        filename = "property_comparison.pdf"
         pdf.output(filename)
         return filename
 
-    st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.header("🏘 Property Comparison Tool")
-    st.caption("Compare multiple properties side-by-side.")
+    def export_csv(df):
+        """CSV export with watermark."""
+        watermark = f"# Exported by RentIntel on {datetime.now().strftime('%Y-%m-%d')}\n"
+        return (watermark + df.to_csv(index=False)).encode()
 
+    # ──────────── State ────────────
     if "comparison_inputs" not in st.session_state:
-        st.session_state.comparison_inputs = []
+        st.session_state["comparison_inputs"] = []
 
-    st.markdown("### 🏠 Add Property Inputs")
-    col1, col2 = st.columns(2)
-    with col1:
-        name = st.text_input("Property Name", value="123 Main St")
-        price = st.number_input("Purchase Price ($)", min_value=-1e6, value=300000.0)
-        rent = st.number_input("Monthly Rent ($)", min_value=-1e6, value=2500.0)
-    with col2:
-        expenses = st.number_input("Monthly Expenses ($)", min_value=-1e6, value=1800.0)
-        down = st.slider("Down Payment %", 0, 100, 20)
-
-    if st.button("➕ Add to Compare"):
-        st.session_state.comparison_inputs.append({
-            "Property Name": name,
-            "Purchase Price": price,
-            "Monthly Rent": rent,
-            "Monthly Expenses": expenses,
-            "Down Payment": down
-        })
-        st.success(f"Added {name} to comparison list")
-
-    st.markdown("### 🗂 Current Properties")
-    for i, prop in enumerate(st.session_state.comparison_inputs):
-        col1, col2 = st.columns([6, 1])
+    # ──────────── Quick Deal Snapshot Form ────────────
+    with st.form("snapshot_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f"**🏠 {prop['Property Name']}** - ${prop['Purchase Price']:,} | Rent: ${prop['Monthly Rent']:,} | Expenses: ${prop['Monthly Expenses']:,} | Down: {prop['Down Payment']}%")
+            name = st.text_input("Property Name")
+            price = st.number_input("Purchase Price ($)", min_value=0.0, step=1000.0)
+            rent = st.number_input("Monthly Rent ($)", min_value=0.0, step=50.0)
+            expenses = st.number_input("Monthly Expenses ($)", min_value=0.0, step=50.0)
         with col2:
-            if st.button("❌ Delete", key=f"delete_comp_{i}"):
-                st.session_state.comparison_inputs.pop(i)
-                st.rerun()
+            down_payment_pct = st.number_input("Down Payment (%)", min_value=0.0, max_value=100.0, value=20.0, step=1.0)
+            interest_rate = st.number_input("Interest Rate (%)", min_value=0.0, max_value=20.0, value=6.5, step=0.1)
+            loan_years = st.number_input("Loan Term (years)", min_value=1, max_value=40, value=30, step=1)
 
-    if st.button("📊 Compare Properties") and st.session_state.comparison_inputs:
-        df_data = []
-        for prop in st.session_state.comparison_inputs:
-            price = prop["Purchase Price"]
-            rent = prop["Monthly Rent"]
-            expenses = prop["Monthly Expenses"]
-            down = prop["Down Payment"]
-            annual_cf = (rent - expenses) * 12
-            down_amt = price * down / 100
-            roi = (annual_cf / down_amt) * 100 if down_amt else 0
-            cap = (annual_cf / price) * 100 if price else 0
+        submitted = st.form_submit_button("➕ Add Property (Auto‑Calculate)")
 
-            roi_score = min(roi / 20 * 30, 30)
-            cf_score = min((rent - expenses) / 300 * 30, 30)
-            cap_score = min(cap / 10 * 20, 20)
-            bonus = 10 if roi > 10 and (rent - expenses) > 250 else 0
-            deal_score = roi_score + cf_score + cap_score + bonus
+    if submitted:
+        # Mortgage calculation (handles 0% rate)
+        loan_amount = price * (1 - down_payment_pct / 100)
+        monthly_rate = (interest_rate / 100) / 12
+        n_payments = int(loan_years * 12)
+        if loan_amount > 0 and n_payments > 0:
+            if monthly_rate > 0:
+                mortgage_payment = loan_amount * (monthly_rate * (1 + monthly_rate) ** n_payments) / ((1 + monthly_rate) ** n_payments - 1)
+            else:
+                mortgage_payment = loan_amount / n_payments
+        else:
+            mortgage_payment = 0.0
 
-            df_data.append({
-                **prop,
-                "Cash Flow": rent - expenses,
-                "Cap Rate": cap,
-                "ROI": roi,
-                "Score": deal_score
-            })
+        # Auto‑calculated fields
+        cash_flow = rent - expenses - mortgage_payment
+        noi = (rent - expenses) * 12
+        cap_rate = (noi / price) * 100 if price > 0 else 0.0
+        annual_cash_flow = cash_flow * 12
+        down_payment = price * (down_payment_pct / 100)
+        roi = (annual_cash_flow / down_payment) * 100 if down_payment > 0 else 0.0
 
-        comparison_df = pd.DataFrame(df_data)
-        st.markdown("### 📋 Comparison Results")
+        # Deal Score (same spirit as your Quick Deal Analyzer weighting)
+        # 60% ROI (cap at 20%), 30% Cap (cap at 10%), ±10 for CF sign
+        roi_score = min(roi, 20) / 20 * 60
+        cap_score = min(cap_rate, 10) / 10 * 30
+        cf_score = 10 if cash_flow > 0 else -10
+        score = max(0, min(roi_score + cap_score + cf_score, 100))
+
+        st.session_state["comparison_inputs"].append({
+            "Property Name": name or "Untitled Deal",
+            "Purchase Price": float(price or 0),
+            "Monthly Rent": float(rent or 0),
+            "Monthly Expenses": float(expenses or 0),
+            "Cash Flow": float(cash_flow),
+            "Cap Rate": float(cap_rate),
+            "ROI": float(roi),
+            "Score": float(score),
+        })
+        st.success(f"Quick Deal Snapshot added: {name or 'Untitled Deal'}")
+
+    # ──────────── Comparison Table & Row Actions ────────────
+    if len(st.session_state["comparison_inputs"]) == 0:
+        st.info("No properties added yet. Use the form above to add properties for comparison.")
+    else:
+        comparison_df = pd.DataFrame(st.session_state["comparison_inputs"])
+        st.subheader("📋 Properties to Compare")
         st.dataframe(comparison_df, use_container_width=True)
 
-        if st.button("📄 Export Comparison to PDF"):
-            path = comparison_to_pdf(comparison_df)
-            with open(path, "rb") as f:
-               csv = export_csv_with_watermark(comparison_df)
-               st.download_button("⬇️ Download Comparison Table", csv, "comparison.csv", "text/csv")
+        
 
+        # Per‑row delete controls
+        st.subheader("🗂 Manage Properties")
+        for idx, prop in enumerate(list(st.session_state["comparison_inputs"])):
+            c1, c2, c3, c4, c5 = st.columns([4, 2, 2, 2, 1])
+            with c1:
+                st.markdown(f"**{prop.get('Property Name','(no name)')}**")
+            with c2:
+                st.caption(f"ROI: {prop.get('ROI', 0):.1f}%")
+            with c3:
+                st.caption(f"Cap: {prop.get('Cap Rate', 0):.1f}%")
+            with c4:
+                st.caption(f"CF/mo: ${prop.get('Cash Flow', 0):,.0f}")
+            with c5:
+                if st.button("🗑", key=f"del_prop_{idx}", help="Delete this property"):
+                    # Remove by index and rerun to refresh table/UI
+                    st.session_state["comparison_inputs"].pop(idx)
+                    st.rerun()
+
+        st.markdown("---")
+        # Clear all
+        if st.button("🧹 Clear All Properties"):
+            st.session_state["comparison_inputs"] = []
+            st.rerun()
+
+        # Exports
+        col1, col2 = st.columns(2)
+        with col1:
+            csv_bytes = export_csv(comparison_df)
+            st.download_button(
+                "⬇ Export CSV",
+                data=csv_bytes,
+                file_name="property_comparison.csv",
+                mime="text/csv"
+            )
+        with col2:
+            pdf_filename = comparison_to_pdf(comparison_df)
+            with open(pdf_filename, "rb") as f:
+                st.download_button(
+                    label="📄 Export PDF",
+                    data=f.read(),
+                    file_name="property_comparison.pdf",
+                    mime="application/pdf"
+                )
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 
 # ─────────────────────────── ADVANCED ANALYTICS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🧪 Advanced Analytics":
@@ -1564,211 +2146,674 @@ elif page == "📊 Deal Summary Comparison":
 
 #────────────────── Tax Benefits ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "💸 Tax Benefits":
-    import re
-    from fpdf import FPDF
+    import re, unicodedata
 
     st.markdown("<div class='card'>", unsafe_allow_html=True)
-    st.header("💸 Rental Property Tax Benefits & Write-Offs")
-    st.markdown("Explore the deductions available to landlords — with IRS links and audit tips to keep you protected.")
-    st.header("IMPORTANT DISCLAIMER!")
-    st.markdown("""
-    Disclaimer: This tool is for educational and estimation purposes only. Always consult a qualified professional (real estate agent, CPA, lender) before making investment decisions.
+    st.header("💸 Landlord Tax Benefits — Practical Guide")
+    st.caption("Educational overview. Not tax advice. Verify with a licensed tax professional and current IRS publications.")
 
- Record-Keeping: It’s crucial to maintain detailed records of all your rental property expenses and keep receipts.
+    # ---------- Helpers ----------
+    def normalize_text_md(s: str) -> str:
+        if not s:
+            return s
+        s = unicodedata.normalize("NFKC", s)
+        s = re.sub(r"[\u200B-\u200D\uFEFF]", "", s)  # strip zero-width chars
+        s = s.replace("∗", "*")
+        return s
 
- Capitalization vs. Expense: Distinguish between repairs (deductible in the year incurred) and improvements (which must be capitalized and depreciated).
+    def md(text: str):
+        st.markdown(normalize_text_md(text), unsafe_allow_html=True)
 
- Tax Professional: Consider consulting a tax professional to ensure you’re taking full advantage of all eligible deductions""")
-    benefits = [
-        ("🏦 Mortgage Interest Deduction - IRS Section 163(h)",
-         "Deduct interest paid on loans for purchasing, refinancing, or improving rental properties.",
-         "https://www.irs.gov/publications/p936",
-         "Keep copies of your loan documents and annual Form 1098 from your lender."),
-        
-        ("🏠 Property Taxes - IRS Section 164",
-         "Deduct real estate taxes paid to local and state governments.",
-         "https://www.irs.gov/taxtopics/tc503",
-         "Keep property tax bills and proof of payment (e.g., bank statements or checks)."),
-        
-        ("📉 Depreciation - IRS Section 167 & 168",
-         "You can depreciate the building (not land) over 27.5 years — reducing taxable income even as the property appreciates.",
-         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219031",
-         "Maintain records of the purchase price, land vs building value, and depreciation schedules."),
-        
-        ("🔧 Repairs & Maintenance - IRS Section 162",
-         "Deduct repairs like plumbing fixes, painting, or replacing appliances — not improvements.",
-         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219043",
-         "Save all repair receipts and make a note of the purpose and date of the work."),
-        
-        ("🛡️ Insurance Premiums - IRS Section 162",
-         "Landlord, liability, flood, and fire insurance premiums are fully deductible.",
-         "https://www.irs.gov/publications/p535",
-         "Keep annual insurance invoices and proof of payment."),
-        
-        ("👨‍💼 Property Management Fees - IRS Section 162",
-         "Fees paid to property managers or assistants for running rental operations are deductible.",
-         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
-         "Retain management agreements, invoices, and payment confirmations."),
-        
-        ("🚗 Travel & Mileage - IRS Section 162",
-         "Deduct trips made for rental purposes — mileage, lodging, or airfare if the property is out of town.",
-         "https://www.irs.gov/pub/irs-pdf/p463.pdf",
-         "Use a mileage log app or notebook. Record trip dates, purpose, and distances."),
-        
-        ("⚖️ Legal & Professional Fees - IRS Section 162",
-         "Deduct legal advice, eviction filings, accounting, and tax prep fees for rentals.",
-         "https://www.irs.gov/publications/p535",
-         "Save all invoices and retainers, especially for legal work."),
-        
-        ("💡 Utilities - IRS Section 162",
-         "Landlord-paid gas, water, electric, internet, and trash are deductible.",
-         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
-         "Keep utility bills and statements. Note which units each bill covers."),
-        
-        ("📢 Advertising & Tenant Screening - IRS Section 162",
-         "Deduct rental listings, signs, flyers, and screening services (credit/background checks).",
-         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
-         "Save invoices from listing platforms and screening services."),
-        
-        ("🏘 HOA Fees & Condo Dues - IRS Section 162",
-         "Monthly or annual HOA/condo fees related to rental units are deductible.",
-         "https://www.irs.gov/publications/p527#en_US_2023_publink1000219044",
-         "Save HOA billing statements and bank records of payments."),
-        
-        ("🧰 Supplies & Small Tools - IRS Section 162",
-         "Items like locks, smoke detectors, cleaning supplies, or light tools are deductible.",
-         "https://www.irs.gov/publications/p535",
-         "Keep itemized receipts and note which property each supply was used for."),
-        
-        ("🏡 Home Office Deduction - IRS Section 280A",
-         "If you manage rentals from a dedicated space at home, you may qualify for this deduction.",
-         "https://www.irs.gov/publications/p587",
-         "Document square footage, take photos of the space, and keep utility/home bills."),
-        
-        ("📚 Education & Books -  IRS Section 162",
-         "Courses, seminars, or books that enhance your rental property management skills may be deductible.",
-         "https://www.irs.gov/publications/p970",
-         "Keep receipts and ensure the content is directly related to your rental business."),
-        
-        ("🚀 Start-Up & Organizational Costs - IRS Section 195",
-         "Initial legal, research, and marketing costs before your first rental goes live can be amortized.",
-         "https://www.irs.gov/publications/p535#en_US_2023_publink1000208932",
-         "Document each startup expense and note the date your rental officially began.")
+    def callout(title: str, body: str):
+        md(f"""
+<div style="border-left:4px solid #4ade80; padding:10px 12px; background:#1f2937; border-radius:8px; margin:8px 0;">
+  <div style="font-weight:600; margin-bottom:4px;">{title}</div>
+  <div>{body}</div>
+</div>
+""")
+
+    def irs_link(label: str, url: str) -> str:
+        return f'<a href="{url}" target="_blank">{label}</a>'
+
+    # ---------- IRS links (curated primary sources) ----------
+    IRS = {
+        "Pub527": ("Publication 527 — Residential Rental Property", "https://www.irs.gov/publications/p527"),
+        "Pub925": ("Publication 925 — Passive Activity & At-Risk Rules", "https://www.irs.gov/publications/p925"),
+        "Pub946": ("Publication 946 — Depreciation (MACRS)", "https://www.irs.gov/publications/p946"),
+        "Form4562": ("Form 4562 — Depreciation & Amortization (Instructions)", "https://www.irs.gov/forms-pubs/about-form-4562"),
+        "SchE": ("Schedule E — Supplemental Income (Instructions)", "https://www.irs.gov/forms-pubs/about-schedule-e-form-1040"),
+        "Form8582": ("Form 8582 — Passive Activity Loss Limitations", "https://www.irs.gov/forms-pubs/about-form-8582"),
+        "Pub535": ("Publication 535 — Business Expenses", "https://www.irs.gov/publications/p535"),
+        "Pub463": ("Publication 463 — Travel, Gift, and Car Expenses", "https://www.irs.gov/publications/p463"),
+        "Pub551": ("Publication 551 — Basis of Assets", "https://www.irs.gov/publications/p551"),
+        "Pub544": ("Publication 544 — Sales & Other Dispositions of Assets", "https://www.irs.gov/publications/p544"),
+        "Form8824": ("Form 8824 — Like-Kind Exchanges (Instructions)", "https://www.irs.gov/forms-pubs/about-form-8824"),
+        "199A": ("Section 199A — Qualified Business Income (QBI) FAQ", "https://www.irs.gov/newsroom/qualified-business-income-deduction-section-199a"),
+        "HomeOffice": ("Home Office (See Pub 587)", "https://www.irs.gov/publications/p587"),
+        "PMI": ("Mortgage Insurance Premiums (See Instructions)", "https://www.irs.gov/credits-deductions/individuals/mortgage-insurance-premiums"),
+    }
+
+    # ---------- Topics data (Title, Body builder) ----------
+    def sec_core_writeoffs():
+        t = "Core Write‑Offs (Schedule E)"
+        b = f"""
+**What’s deductible annually** for rentals typically reported on Schedule E:
+- **Mortgage interest** (on the rental loan)
+- **Property taxes**, **insurance**, **HOA/condo fees**
+- **Repairs & maintenance**, supplies, locks, small tools
+- **Utilities** you pay (water, trash, gas/electric, internet if landlord-paid)
+- **Professional fees** (management, legal, accounting, software)
+- **Advertising & leasing costs**, tenant screening
+- **Travel & vehicle** (property trips; see vehicle rules)
+- **Depreciation** (building & certain improvements via MACRS)
+
+{callout_html("What this means in plain English", "If you spent money **operating** the rental this year, it’s usually deductible **this year**, except long‑lived improvements—those are **depreciated** over time.")}
+
+**Example.** Rent $2,200/mo; you pay $300 taxes/insurance, $80 HOA, $120 lawn, $50 repair supplies in March, $1,500 management for the year. All those are current deductions on **Schedule E**.
+
+**Pro tips**
+- Keep **separate bank/credit card** for rentals.
+- Save **invoices/receipts**; export reports each year.
+- If you **reimburse** a tenant for something that’s your expense, still deductible.
+
+**Pitfalls**
+- **Improvements ≠ repairs** — new roof or new HVAC is **not** a current expense; it’s depreciated.
+- For mixed‑use (e.g., duplex + your unit), **allocate** expenses reasonably.
+
+**IRS**: {link_line(["SchE","Pub527","Pub535"])}
+"""
+        return t, b
+
+    def sec_depreciation():
+        t = "Depreciation (27.5 years, MACRS)"
+        b = f"""
+You generally depreciate **residential building value** (not land) over **27.5 years** using **MACRS**. Most capital improvements (roof, HVAC, additions) are depreciated, too.
+
+{callout_html("What this means in plain English", "When you buy a rental, you usually **cannot expense** the price in year 1. You **spread** the building’s cost over 27.5 years as an annual deduction. Land is not depreciable.")}
+
+**Steps**
+1. Determine **building vs. land** value (use county assessment or appraisal allocation).
+2. Place in service date = available to rent.
+3. Claim each year on **Form 4562** / **Schedule E**.
+
+**Example.** Purchase $300,000; county shows land 20%. Building = $240,000. Annual depreciation ≈ $240,000 / 27.5 = **$8,727** (first/last year prorated).
+
+**Pro tips**
+- Keep **closing statement**; basis starts there (plus capitalized costs).
+- Track improvements by date & cost; add to **depreciation schedule**.
+- Consider **cost segregation** (engineered study) to reclassify some items into **5/7/15‑year** property (see a CPA).
+
+**Pitfalls**
+- **Land** is not depreciable.
+- Depreciation taken (or **allowed**) reduces your **basis** and affects gain/recapture on sale.
+
+**IRS**: {link_line(["Pub946","Form4562","Pub551","Pub527"])}
+"""
+        return t, b
+
+    def sec_repairs_vs_improvements():
+        t = "Repairs vs. Improvements"
+        b = f"""
+**Repairs** keep the property in operating condition (deduct now).  
+**Improvements** **better** the property, **adapt** it to new use, or **restore** a major component (capitalize & depreciate).
+
+{callout_html("What this means in plain English", "Fixing a leak or replacing a broken doorknob? **Repair**. Replacing the entire roof or adding a bedroom? **Improvement**.")}
+
+**Safe harbors (talk to your CPA):**
+- **De minimis** (often up to $2,500 per invoice/item with applicable policy) — expense small items.
+- **Routine maintenance** — regular & expected upkeep can be expensed.
+- **Small taxpayer safe harbor** — for certain buildings where total improvements fall under thresholds.
+
+**Examples**
+- Repair: patch drywall, fix a leak, replace a few shingles, small appliance part.
+- Improvement: full roof, new HVAC, new kitchen cabinets, room addition.
+
+**Pro tips**
+- Keep **detailed descriptions** on invoices.
+- Use safe harbors **consistently** and **document** policy.
+
+**Pitfalls**
+- Capitalizing when expensing is allowed (**missed deduction**).
+- Expensing large restorations that should be capitalized (**audit risk**).
+
+**IRS**: {link_line(["Pub535","Pub946","Pub527"])}
+"""
+        return t, b
+
+    def sec_vehicle_travel():
+        t = "Vehicle & Travel (Property Trips)"
+        b = f"""
+Trips for rental **management** are deductible:
+- **Local travel**: standard mileage **or** actual expenses (choose one method).
+- **Out‑of‑town** travel: transportation + lodging + incidental costs **if** primarily for rental business.
+
+{callout_html("What this means in plain English", "Driving to meet a plumber, showing the unit, picking up supplies—those miles are deductible.")}
+
+**Examples**
+- Keep a **mileage log**: date, purpose, start/end miles.
+- Out‑of‑town: keep **receipts**; track business purpose.
+
+**Pro tips**
+- Standard mileage rate (see current IRS rate) is **simple**; actual expenses require allocation & records.
+- Parking/tolls are **add‑ons**.
+
+**Pitfalls**
+- **Commuting** miles are not deductible.
+- Purely personal trips with a property stop **don’t qualify**.
+
+**IRS**: {link_line(["Pub463","Pub535"])}
+"""
+        return t, b
+
+    def sec_home_office():
+        t = "Home Office (if your rental activity is a trade or business)"
+        b = f"""
+If your rental activity rises to a **trade or business**, a **home office** used **regularly and exclusively** for management can be deductible.
+
+{callout_html("What this means in plain English", "If you truly run the rental like a business from a dedicated workspace at home, you may deduct a portion of home costs.")}
+
+**Two methods**
+- **Simplified**: set rate × sq ft (up to IRS limit)
+- **Actual**: allocate mortgage interest/rent, utilities, insurance, etc.
+
+**Pro tips**
+- Document **exclusive** & **regular** use.
+- If you only have one property & minimal activity, discuss **trade/business** status with a CPA.
+
+**Pitfalls**
+- Mixed personal use kills eligibility.
+- Overstating business %.
+
+**IRS**: {link_line(["HomeOffice","Pub535"])}
+"""
+        return t, b
+
+    def sec_passive_losses():
+        t = "$25,000 Passive Loss Allowance (Active Participation)"
+        b = f"""
+If you **actively participate** in your rental (approve tenants, set rents, OK repairs), you may deduct up to **$25,000** of **passive losses** against non‑passive income.  
+This phases out **between $100,000 and $150,000** of **MAGI**; above **$150,000**, the allowance is **$0**.
+
+{callout_html("What this means in plain English", "If your rentals show a tax loss, up to $25k of that loss may reduce your W‑2/other income—if you meet the participation and income rules.")}
+
+**Pro tips**
+- If losses are **suspended**, they carry forward and can offset future passive income or be freed on **disposition**.
+- Keep **participation records** (emails, logs).
+
+**Pitfalls**
+- Confusing **active participation** (easier) with **material participation** (harder).
+- Going over MAGI limits eliminates the allowance.
+
+**IRS**: {link_line(["Pub925","Form8582","SchE"])}
+"""
+        return t, b
+
+    def sec_real_estate_pro():
+        t = "Real Estate Professional Status (REPS)"
+        b = f"""
+If you (and spouse filing jointly, combined) qualify as a **Real Estate Professional**, and **materially participate** in the rental activity, your rental losses may be **non‑passive** (can offset non‑passive income).
+
+{callout_html("What this means in plain English", "If real estate is your day job and you’re deeply involved, your rental losses might offset W‑2 or business income.")}
+
+**High‑level tests (see Pub 925/Regs)**
+- **More than half** of personal services performed in real property trades or businesses; **and**
+- **750+ hours** of services in those real property trades or businesses; **and**
+- **Material participation** in the rental activity (or group activities with election).
+
+**Pro tips**
+- Keep **contemporaneous time logs**.
+- Consider grouping elections; talk to a CPA.
+
+**Pitfalls**
+- Failing **material participation** even if you hit 750 hours in real estate **but not in the rentals**.
+- Weak documentation.
+
+**IRS**: {link_line(["Pub925"])}
+"""
+        return t, b
+
+    def sec_qbi():
+        t = "QBI (Section 199A) — 20% Deduction (Sometimes)"
+        b = f"""
+Some rental activities that qualify as a **trade or business** may get the **QBI deduction** (up to 20% of qualified income), subject to **thresholds, limitations, and complex rules**.
+
+{callout_html("What this means in plain English", "If your rental counts as a business, you might get an extra deduction on the **profit**, not the gross rent.")}
+
+**Pro tips**
+- Safe harbor exists for certain rentals (recordkeeping, hours). Evaluate annually.
+- QBI interacts with wages, capital, and income limits—**CPA recommended**.
+
+**Pitfalls**
+- Assuming **all** rentals qualify.
+- Ignoring **phase‑outs** and wage/property tests at higher incomes.
+
+**IRS**: {link_line(["199A","Pub535"])}
+"""
+        return t, b
+
+    def sec_1031():
+        t = "1031 Exchange (Like‑Kind) — Defer Gain"
+        b = f"""
+A **like‑kind exchange** lets you **defer** recognition of gain when exchanging investment real estate for other **like‑kind** real estate (strict timelines & rules apply).
+
+{callout_html("What this means in plain English", "Sell one investment property and roll into another without paying tax **now**—but basis follows; you pay later when you sell unless you keep exchanging.")}
+
+**Key ideas**
+- Use a **qualified intermediary (QI)**.
+- **45 days** to ID replacement; **180 days** to close.
+- Exchange value & debt replacement matter.
+
+**Pro tips**
+- Coordinate with QI **before** closing the sale.
+- Understand **basis carryover** and **depreciation recapture** effects.
+
+**Pitfalls**
+- Missing ID/closing deadlines.
+- Touching the proceeds (disqualifies exchange).
+
+**IRS**: {link_line(["Form8824","Pub544"])}
+"""
+        return t, b
+
+    def sec_basis_closing():
+        t = "Basis, Closing Costs & Adjustments"
+        b = f"""
+Your **basis** generally starts with purchase price plus certain **closing costs** (title, recording, some legal), plus **capital improvements**; reduced by depreciation and certain credits.
+
+{callout_html("What this means in plain English", "Basis is your property’s “tax cost.” It’s crucial for depreciation now and gain later.")}
+
+**Examples (generally added to basis)**
+- Title fees, recording, certain legal fees, surveys
+- Capital improvements after purchase
+
+**Pro tips**
+- Keep the **closing statement** and improvement logs.
+- Separate **land vs. building** for depreciation.
+
+**Pitfalls**
+- Treating **loan costs** as basis (they’re usually amortized separately).
+- Losing track of past depreciation (affects gain/recapture).
+
+**IRS**: {link_line(["Pub551","Pub527"])}
+"""
+        return t, b
+
+    def sec_loan_points_refi():
+        t = "Loan Costs, Points & Refinance"
+        b = f"""
+**Loan origination costs** and **points** on a rental are generally **amortized** over the life of the loan (unlike a primary residence where points may be deductible that year).
+
+{callout_html("What this means in plain English", "On rentals, most loan fees are not a one‑year deduction—you spread them across the loan term.")}
+
+**Pro tips**
+- Track amortization schedule (when you refi/payoff, remaining unamortized costs may be deductible).
+- Separate **interest** (deduct annually) from **loan costs** (amortize).
+
+**Pitfalls**
+- Expensing all loan fees in one year.
+- Forgetting to deduct remainder at **payoff/refi**.
+
+**IRS**: {link_line(["Pub535","SchE"])}
+"""
+        return t, b
+
+    def sec_sale_gain_recapture():
+        t = "Selling a Rental: Gain, Depreciation Recapture"
+        b = f"""
+When you sell, total gain is affected by **accumulated depreciation** (recapture taxed up to 25%) and **capital gain** on the rest.
+
+{callout_html("What this means in plain English", "You got deductions for depreciation; when you sell, the IRS may tax that part differently (**recapture**), and the rest at capital‑gains rates.")}
+
+**Pro tips**
+- Keep a **depreciation ledger** (years of deductions).
+- Closing costs at sale may **reduce** amount realized.
+
+**Pitfalls**
+- Forgetting recapture.
+- Misstating basis (esp. missed/allowed depreciation).
+
+**IRS**: {link_line(["Pub544","Pub551","SchE"])}
+"""
+        return t, b
+
+    # helpers to format callout and link list
+    def callout_html(title, body):
+        return f"""
+<div style="border-left:4px solid #4ade80; padding:10px 12px; background:#111827; border-radius:8px; margin:8px 0;">
+  <div style="font-weight:600; margin-bottom:4px;">{title}</div>
+  <div>{body}</div>
+</div>
+"""
+
+    def link_line(keys):
+        links = [irs_link(IRS[k][0], IRS[k][1]) for k in keys if k in IRS]
+        return " • ".join(links)
+
+    # Build the master list of sections
+    SECTIONS = [
+        sec_core_writeoffs(),
+        sec_depreciation(),
+        sec_repairs_vs_improvements(),
+        sec_vehicle_travel(),
+        sec_home_office(),
+        sec_passive_losses(),
+        sec_real_estate_pro(),
+        sec_qbi(),
+        sec_1031(),
+        sec_basis_closing(),
+        sec_loan_points_refi(),
+        sec_sale_gain_recapture(),
     ]
 
-    for title, desc, link, tip in benefits:
-        with st.expander(title):
-            st.markdown(f"**What It Is:** {desc}")
-            st.markdown(f"🔗 [IRS Guidance]({link})")
-            st.markdown(f"🧾 **Audit Tip:** {tip}")
+    # ---------- Filters / Search ----------
+    st.subheader("Find What You Need Fast")
+    left, right = st.columns([2, 1])
+    with left:
+        query = st.text_input("Search topics or keywords (e.g., “depreciation”, “vehicle”, “QBI”, “loss”):", "").strip().lower()
+    with right:
+        # allow quick topic selection
+        titles = [t for t, _ in SECTIONS]
+        selected = st.multiselect("Show only these topics (optional):", titles, default=[])
 
+    def matches(title, body, q):
+        if not q:
+            return True
+        hay = (title + " " + body).lower()
+        return all(word in hay for word in q.split())
+
+    # ---------- Render ----------
+    shown = 0
+    for title, body in SECTIONS:
+        if selected and title not in selected:
+            continue
+        if not matches(title, body, query):
+            continue
+        with st.expander(f"📌 {title}", expanded=False):
+            md(body)
+        shown += 1
+
+    if shown == 0:
+        st.info("No sections match your search. Try different keywords or clear filters.")
+
+    md("""
+<hr style="border: none; border-top: 1px solid #333; margin: 16px 0;" />
+<small><strong>Disclaimer:</strong> This page is an educational summary. Tax rules change and have exceptions. Confirm with a qualified tax professional and the latest IRS publications.</small>
+""")
 
     st.markdown("</div>", unsafe_allow_html=True)
-
 # ─────────────────────────── GLOSSARY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "📖 Help & Info":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("📖 Real Estate Glossary & Methodology")
     st.markdown("*A beginner-friendly guide to key real estate terms and how our estimates work.*")
 
+    search_term = st.text_input("🔎 Search for a term (e.g. 'cap rate', 'loan')").strip().lower()
+
+    # Helper to filter a block by search term
+    def show_if_match(title: str, terms: list[str]):
+        if not search_term:
+            return True
+        combined = title.lower() + " " + " ".join(terms).lower()
+        return search_term in combined
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 💰 Cash Flow & Returns
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("💰 Cash Flow & Returns"):
         st.markdown("""
-- **Cash Flow** 📈: Money left over each month after paying all expenses.
-- **ROI (Return on Investment)** 💸: Your profit as a % of the money you invested.
-- **Cap Rate** 🏦: Return based only on property income (ignores loan); higher is better.
-- **IRR (Internal Rate of Return)** ⏳: Average yearly return over time, with timing factored in.
-- **Cash-on-Cash Return** 💵: Cash profit ÷ cash invested — helpful when using loans.
-- **Equity** 💎: What you “own” in the property = value minus loan.
-- **Appreciation** 📈: Increase in property value over time.
-- **Net Operating Income (NOI)** 🧮: Rent - expenses (excluding mortgage).
-- **Total Return** 🧾: All gains combined — cash flow + equity + appreciation.
+- **Cash Flow** 📈: Money left over each month after paying all expenses and debt service.
+- **Cash Flow (Annual)** 📅: Monthly cash flow × 12.
+- **ROI (Return on Investment)** 💸: Annual profit ÷ initial cash invested.
+- **Cash‑on‑Cash Return** 💵: (Annual pre‑tax cash flow ÷ cash invested) × 100.
+- **Cap Rate** 🏦: NOI ÷ Purchase Price (ignores financing).
+- **NOI (Net Operating Income)** 🧮: Rent + other income − operating expenses (excludes mortgage & CapEx).
+- **IRR (Internal Rate of Return)** ⏳: Annualized return accounting for timing of cash flows.
+- **MIRR** 🔁: IRR variant using explicit reinvest/finance rates.
+- **NPV (Net Present Value)** 🧾: Present value of cash flows minus initial investment.
+- **Equity** 💎: Property value − loan balance.
+- **Appreciation** 📈: Value increase over time (market or forced via rehab).
+- **Total Return** 🧾: Cash flow + principal paydown + appreciation (± taxes).
+- **Breakeven Occupancy** ⚖️: Occupancy % needed so NOI covers debt service & fixed costs.
+- **Operating Expense Ratio (OER)** 📊: OpEx ÷ Effective Gross Income.
+- **Expense Ratio to Rent** 🧯: Operating expenses ÷ gross rent.
+- **1% Rule** 🔍: Target monthly rent ≈ 1% of price (quick screen; not definitive).
+- **50% Rule** ⛑️: Assume ~50% of rent goes to OpEx before mortgage (rule of thumb).
+- **70% Rule (Flips)** 🔨: Max offer ≈ 70% × ARV − repairs.
+- **Payback Period** ⏱️: Time to recover initial cash investment from cash flow.
         """)
 
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 🏠 Property Terms
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🏠 Property Terms"):
         st.markdown("""
-- **Purchase Price** 💲: What you pay to buy the property.
-- **After Repair Value (ARV)** 🛠: Estimated value after rehab/renovations.
-- **Comparable Sales (Comps)** 🏘: Similar recently sold properties used to estimate value.
-- **Square Footage (Sq Ft)** 📏: The size of the home or unit.
-- **Zoning** 🧭: Local rules that control how the property can be used (e.g. residential, multifamily).
-- **HOA (Homeowners Association)** 🏘️: Monthly fees for shared communities or condos.
+- **Purchase Price** 💲: Contract price to acquire the property.
+- **After‑Repair Value (ARV)** 🛠️: Estimated value after renovations.
+- **Comps / CMA** 🏘️: Comparable sales/market analysis to gauge value.
+- **T12 / Trailing 12** 📆: Last 12 months of actual income/expenses.
+- **Pro Forma** 📄: Forward‑looking income/expense projection.
+- **Rent Roll** 🧾: Unit‑level rent & lease snapshot.
+- **Sq Ft (Square Footage)** 📏: Size used for pricing/rents.
+- **Gross Building Area (GBA)** 🧱: Total building area; **Net Rentable** excludes common areas.
+- **Beds/Baths** 🛌🛁: Unit mix details affecting rent.
+- **Zoning** 🧭: Permitted uses; may restrict STRs, ADUs, density.
+- **Easement** 🛤️: Right for others to use part of the property (utilities/access).
+- **Encumbrance/Lien** 🧷: Claim on the property (e.g., mortgage, tax lien).
+- **HOA/COA** 🏘️: Association fees & rules for communities/condos.
+- **Utility Setup** 💡: Landlord/tenant responsibility (RUBS, sub‑metering).
+- **ADU** 🧩: Accessory dwelling unit (extra rentable space).
         """)
 
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 📊 Deal Analysis Metrics
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📊 Deal Analysis Metrics"):
         st.markdown("""
-- **Gross Rent Multiplier (GRM)** 📐: Price ÷ Gross Annual Rent — a fast value estimate.
-- **Break-Even Rent** 💡: Minimum rent needed to cover all costs.
-- **Occupancy Rate** 🛏️: How often the property is rented out (vs. vacant).
-- **Vacancy Rate** 🚪: % of time the property is not rented.
-- **Deal Score** 🧠: A 0–100 score in RentIntel to help rank your deals.
+- **Gross Scheduled Rent (GSR)** 🗓️: Rent at 100% occupancy before losses.
+- **Vacancy Loss** 🚪: GSR × vacancy rate.
+- **Loss to Lease (LTL)** 📉: Difference between market rent and actual rent.
+- **Other Income** ➕: Laundry, parking, pet fees, RUBS, etc.
+- **Effective Gross Income (EGI)** ✅: GSR − vacancy + other income.
+- **Operating Expenses (OpEx)** 🧯: Taxes, insurance, repairs, mgmt, utilities (ex‑CapEx).
+- **Capital Expenditures (CapEx)** 🧱: Big‑ticket replacements (roof, HVAC, parking).
+- **Replacement Reserve** 🧰: Annual set‑aside for future CapEx.
+- **GRM (Gross Rent Multiplier)** 📐: Price ÷ Annual Gross Rent.
+- **DSCR (Debt Service Coverage Ratio)** 🛡️: NOI ÷ Annual debt service (≥1.20 preferred).
+- **DTI (Debt‑to‑Income)** 📉: Borrower debt payments ÷ income.
+- **LTV (Loan‑to‑Value)** ⚖️: Loan ÷ value; **LTC**: Loan ÷ total project cost.
+- **OCC (Occupancy)** 🛏️/**Vacancy** 🚪: % occupied vs. vacant units.
+- **Breakeven Rent** 💡: Rent needed monthly to reach $0 cash flow.
+- **Sensitivity / Scenario** 🔁: Vary key inputs to see outcome ranges.
         """)
 
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 📈 Valuation & Underwriting
+    # ─────────────────────────────────────────────────────────────────────────────
+    with st.expander("📈 Valuation & Underwriting"):
+        st.markdown("""
+- **Income Approach** 💼: Value from NOI and cap rate (Value = NOI / Cap).
+- **Sales Comparison** 🏷️: Value from similar recent sales (cap, $/unit, $/sqft).
+- **Cost Approach** 🧮: Land value + replacement cost − depreciation.
+- **BOV / BPO** 🧑‍💼: Broker Opinion of Value / Price Opinion.
+- **Cap Rate Reversion** 🔁: Exit cap assumption at sale.
+- **Discount Rate** 📉: Required rate to discount future cash flows (DCF).
+- **Going‑In vs. Stabilized** ⚙️: Current metrics vs. post‑improvements/lease‑up.
+- **Stress Test** 🧪: Shock interest rates, rents, expenses to assess risk.
+- **Margin of Safety** 🧩: Cushion between projections and breakeven thresholds.
+        """)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 📉 Financing & Mortgages
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📉 Financing & Mortgages"):
         st.markdown("""
-- **Down Payment** 💳: The cash you put up front (usually 20%).
-- **Loan-to-Value (LTV)** 📊: Loan ÷ Property Value — helps lenders assess risk.
-- **Interest Rate** 📈: What the lender charges you to borrow money.
-- **Mortgage** 🏦: A loan used to buy real estate, paid monthly over time.
-- **Amortization** ⏱️: The way your loan balance goes down monthly.
-- **Private Mortgage Insurance (PMI)** 🛡️: Extra insurance if your down payment is under 20%.
-- **Hard Money Loan** 🔥: Short-term, high-interest loan (used for flips or fast deals).
-- **Refinancing** 🔄: Replacing your loan with a new one — often to pull cash or lower rates.
+- **Down Payment** 💳: Cash invested at purchase (e.g., 20%).
+- **Interest Rate** 📈: Cost of borrowing; fixed vs. adjustable (ARM).
+- **Amortization** ⏱️: How principal is paid down over time.
+- **Points / Origination** 🎯: Up‑front % fees for the lender/broker.
+- **PMI/MIP** 🛡️: Mortgage insurance (conventional/FHA) when low down payment.
+- **Prepayment Penalty** 🚫: Fee for paying off loan early (common in commercial).
+- **IO (Interest‑Only)** 💤: Period with no principal paydown.
+- **Balloon** 🎈: Large payoff due at maturity.
+- **Bridge Loan** 🌉: Short‑term financing until permanent loan/refi.
+- **Blanket / Portfolio Loan** 🧺: One loan for multiple properties; lender holds in‑house.
+- **Non‑Recourse vs Recourse** ⚖️: Borrower’s personal liability limited or not.
+- **Rate Buydown / 2‑1 Buydown** ⬇️: Up‑front payment to temporarily/lower rate.
+- **Seasoning** 🗓️: Time a loan or rent history must exist for underwriting.
         """)
 
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 🧾 Taxes & Write‑Offs
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🧾 Taxes & Write-Offs"):
         st.markdown("""
-- **Depreciation** 📉: A tax benefit that lets you deduct the building’s value over 27.5 years.
-- **Tax Savings** 🧾: Money you save at tax time due to expenses, depreciation, etc.
-- **1031 Exchange** 🔄: A way to sell a property and buy another without paying taxes now.
-- **Property Taxes** 🏠: Annual taxes paid to your city or county.
-- **IRS Schedule E** 📄: The tax form used to report rental income and expenses.
-- **Audit Trail** 📚: Proof (receipts, logs) that support your tax deductions.
+- **Depreciation** 📉: Residential 27.5‑year straight‑line (building only).
+- **Depreciation Recapture** 🔄: Tax on prior depreciation when selling.
+- **Adjusted Basis** 🧮: Purchase price ± improvements − depreciation.
+- **Capital Gains** 🧾: Profit on sale; short‑ vs long‑term.
+- **1031 Exchange** 🔁: Defer gains by exchanging into a like‑kind property.
+- **721/UPREIT** 🏢: Contribute property to an operating partnership for OP units.
+- **Cost Segregation** 🧠: Accelerate depreciation by reclassifying components.
+- **Bonus Depreciation** ⚡: Additional first‑year depreciation (subject to current law).
+- **Passive Activity Rules** 💤: Limits on offsetting active income with rental losses.
+- **QBI (199A)** 💼: Potential 20% deduction on qualified business income (rules apply).
+- **Schedule E** 📄: IRS form for rental income/expenses.
+- **Audit Trail** 📚: Receipts & records supporting deductions.
         """)
 
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 🧰 Operating Expenses & Management
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🧰 Operating Expenses & Management"):
         st.markdown("""
-- **Repairs vs. Improvements** 🛠️: Repairs are deductible now; improvements are depreciated over time.
-- **Property Management Fees** 👷: What you pay a manager to handle tenants and maintenance.
-- **Maintenance Reserve** 🔧: A % of rent saved for ongoing repairs.
-- **Capital Expenditures (CapEx)** 🧱: Big-ticket items like roofs, HVAC, etc.
-- **Utilities** 💡: Landlord-paid services like water, gas, electric, etc.
-- **Insurance Premiums** 🛡️: Coverage for fire, liability, flood, etc.
+- **Repairs vs. Improvements** 🛠️: Repairs are expensed; improvements are capitalized/depreciated.
+- **Turnover / Make‑Ready** 🔁: Preparing a unit between tenants.
+- **Property Management Fee** 👷: % of collected rent (or flat).
+- **Leasing Fee** 📝: One‑time fee for new tenancy.
+- **RUBS** 💧: Ratio utility billing to tenants (water/sewer/trash).
+- **Common Utilities** 🔌: Landlord‑paid electric/gas/water for common areas.
+- **Insurance Premiums** 🛡️: Hazard, liability, flood, umbrella.
+- **Reserves** 💼: Monthly/annual set‑asides for CapEx and contingencies.
+- **Bad Debt / Concessions** 🚫: Uncollectible rent or discounts.
         """)
 
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 🧠 Strategy Terms
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🧠 Strategy Terms"):
         st.markdown("""
-- **BRRRR** 🔁: Buy, Rehab, Rent, Refinance, Repeat — a strategy to build a portfolio with less money.
-- **Buy & Hold** 🏠: Long-term rental investing for cash flow and appreciation.
-- **Fix & Flip** 🔨: Buy low, rehab fast, and sell for profit.
-- **House Hacking** 🧍🏠: Living in one part of a property and renting the rest.
-- **Wholesale Deal** 📦: Assigning a contract to another buyer for a fee.
+- **BRRRR** 🔁: Buy, Rehab, Rent, Refinance, Repeat.
+- **Buy & Hold** 🏠: Long‑term rentals for cash flow + appreciation.
+- **Fix & Flip** 🔨: Renovate and resell quickly for profit.
+- **House Hacking** 🧍🏠: Live in part, rent the rest.
+- **Wholesale** 📦: Assign a purchase contract for a fee.
+- **Value‑Add** 🧩: Improvements/ops tweaks that increase NOI and value.
+- **Syndication** 🤝: Group investment; GP/LP structure.
+- **Preferred Return (“Pref”)** ⭐: LPs get a baseline return before GP promote.
+- **Waterfall / Promote** 💧: Profit split tiers after hurdles.
         """)
 
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 🏗️ Property Types & Use Cases
+    # ─────────────────────────────────────────────────────────────────────────────
+    with st.expander("🏗️ Property Types & Use Cases"):
+        st.markdown("""
+- **SFR / SFH** 🏡: Single‑family rental/home.
+- **Duplex/Triplex/Quad** 🧱: 2‑4 units (residential lending).
+- **Small Multifamily** 🏢: 5–50 units (commercial lending).
+- **Large Multifamily** 🏙️: 50+ units; institutional style.
+- **MTR / STR** 🛏️: Mid‑term (30–90 days) / Short‑term (<30 days) rentals.
+- **Student / Workforce / Section 8** 🎓💼🏷️: Niche strategies with unique rules.
+- **Mixed‑Use** 🧩: Combine residential + retail/office.
+        """)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 📜 Legal & Structures
+    # ─────────────────────────────────────────────────────────────────────────────
+    with st.expander("📜 Legal & Deal Structures"):
+        st.markdown("""
+- **LLC / LP / GP** 🧾: Common ownership/management structures.
+- **Operating Agreement** 🤝: Governs roles, splits, decisions.
+- **JV (Joint Venture)** 🤝: Two+ parties partner on a deal.
+- **PPM (Private Placement Memorandum)** 📑: Disclosure in syndications.
+- **Accredited Investor** 💼: Meets income/net‑worth criteria.
+- **506(b) / 506(c)** 🏛️: Securities exemptions (regarding solicitation/verification).
+- **Title Insurance** 🪪: Protects against title defects.
+- **Deed** 📜: Transfers ownership; warranty vs. quitclaim.
+- **Escrow / Earnest Money** 💰: Neutral funds holder / good‑faith deposit.
+        """)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 📄 Documents & Due Diligence
+    # ─────────────────────────────────────────────────────────────────────────────
+    with st.expander("📄 Documents & Due Diligence"):
+        st.markdown("""
+- **PSA (Purchase & Sale Agreement)** ✍️: Contract to buy/sell.
+- **Addenda / Contingencies** 🧷: Inspection, financing, appraisal outs.
+- **Inspection** 🔎: Property condition review; sewer scope, roof, foundation.
+- **Appraisal** 🧮: Lender’s value opinion for underwriting.
+- **Survey / ALTA** 🗺️: Boundaries, easements, encroachments.
+- **Phase I ESA** 🧪: Environmental site assessment (commercial).
+- **Operating Memorandum / OM** 📊: Offering details and pro forma.
+- **W‑9, Rent Ledgers, Leases** 🧾: Verify income/tenancies.
+- **Estoppels** 📝: Tenant confirms lease terms & balances.
+        """)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 🛏️ Short‑ & Mid‑Term Rentals (STR/MTR)
+    # ─────────────────────────────────────────────────────────────────────────────
+    with st.expander("🛏️ Short‑ & Mid‑Term Rentals (STR/MTR)"):
+        st.markdown("""
+- **ADR (Avg Daily Rate)** 📅: Average nightly rate.
+- **RevPAR** 💵: Revenue per available room/night.
+- **Occupancy (STR)** 🛌: Booked nights ÷ available nights.
+- **Cleaning/Turnover** 🧼: Between‑stay service and supplies.
+- **Channel Fees** 🌐: OTA platform fees (e.g., Airbnb/VRBO).
+- **Local Ordinances** 🏛️: STR permits, caps, and taxes.
+        """)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 🏬 Commercial & Lease Types
+    # ─────────────────────────────────────────────────────────────────────────────
+    with st.expander("🏬 Commercial & Lease Types"):
+        st.markdown("""
+- **NNN (Triple Net)** 🧾: Tenant pays taxes, insurance, maintenance.
+- **Gross / Full‑Service** 🧾: Landlord pays most operating costs.
+- **Modified Gross** 🧾: Cost sharing varies by lease.
+- **TI (Tenant Improvements)** 🔧: Landlord build‑out allowance.
+- **CAM (Common Area Maintenance)** 🧯: Shared area expenses rebilled to tenants.
+- **Percentage Rent** 💳: Base rent + a % of sales (retail).
+- **Option to Renew / Termination** 🔁: Lease flexibility provisions.
+        """)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 📊 Data & Methodology Disclaimer
+    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📊 Data & Methodology Disclaimer"):
         st.markdown("""
 **Where does the data come from?**  
-All deal analyses are based on user-provided inputs like purchase price, rent, expenses, loan terms, and appreciation assumptions. The app does **not pull live market data** (e.g. Zillow, MLS, or county records) unless connected to third-party sources in the future.
+All deal analyses are based on user‑provided inputs (purchase price, rent, expenses, loan terms, appreciation assumptions). The app does **not** pull live market data unless you connect third‑party sources in the future.
 
 ---
 
 **How are projections calculated?**  
-- **ROI, Cap Rate, and Cash Flow** use standard industry formulas.
-- **Multi-Year ROI** includes appreciation, equity growth, and tax-adjusted cash flow.
-- **IRR (Internal Rate of Return)** accounts for the timing of all cash flows.
-- **Depreciation** is calculated on a 27.5-year schedule (per IRS).
-- **Deal Score** is a RentIntel formula blending ROI, Cap Rate, and Cash Flow into a 0–100 score.
+- **ROI, Cap Rate, Cash Flow** follow standard formulas.  
+- **Multi‑Year ROI** includes appreciation, equity growth, and tax‑adjusted cash flow.  
+- **IRR** accounts for timing of all cash flows (including sale).  
+- **Depreciation** uses a 27.5‑year schedule for residential (building only).  
+- **Deal Score** blends ROI, Cap Rate, and Cash Flow into a 0–100 scale.
 
 ---
 
-**What assumptions are included?**  
-- Rent and expense growth are applied annually.
-- Selling costs are assumed to be 6% of resale price.
-- Loan amortization is based on monthly payments.
-- Rehab/refi assumptions are conservative by default.
+**Key assumptions (editable in tools):**  
+- Annual growth rates for rent/expenses.  
+- Selling costs (default ~6%).  
+- Monthly loan amortization.  
+- Conservative defaults for rehab/refi until you customize.
 
 ---
 
-**Disclaimer:** This tool is for **educational and estimation purposes only**. Always consult a qualified professional (real estate agent, CPA, lender) before making investment decisions.
+**Disclaimer:** This tool is for **educational and estimation purposes only**. Always consult a qualified professional (agent, CPA, lender, attorney) before making investment decisions.
         """)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
