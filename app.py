@@ -352,6 +352,7 @@ page = st.selectbox("Navigate to:", [
     "💡 Break-Even Calculator",
     "📘 Multi-Year ROI + Tax Insights",
     "🏘 Property Comparison",
+    "📑 Lender Package",
     "📊 Portfolio Dashboard",
     "📂 Deal History",
     "🧪 Advanced Analytics",
@@ -367,6 +368,7 @@ page = st.selectbox("Navigate to:", [
     "💡 Break-Even Calculator",
     "📘 Multi-Year ROI + Tax Insights",
     "🏘 Property Comparison",
+    "📑 Lender Package",
     "📊 Portfolio Dashboard",
     "📂 Deal History",
     "🧪 Advanced Analytics",
@@ -1176,6 +1178,246 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
         ))
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+# 📘 Lending 101 Tab
+
+elif page == "📑 Lender Package":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.header("📁 Lender-Friendly Deal Package")
+
+    tab1, tab2 = st.tabs(["📄 Summary", "ℹ️ How Lending Works"])
+
+    deals = st.session_state.get("deals", [])
+    if not deals:
+        st.info("No deals found. Analyze a deal first.")
+        st.stop()
+
+    deal_titles = [d.get("title", "Untitled") for d in deals]
+    selected = st.selectbox("Choose a Property", deal_titles)
+    deal = next(d for d in deals if d.get("title", "Untitled") == selected)
+
+    st.subheader("🏡 Property Overview")
+    manual_address = st.text_input("Enter Property Address (if not saved)", value=deal.get('address', ''))
+    st.write(f"**Title:** {deal.get('title', '-')}")
+    st.write(f"**Address:** {deal.get('address', 'N/A')}")
+    st.write(f"**Type:** {deal.get('type', '-')}")
+    st.write(f"**Purchase Price:** ${deal.get('price', 0):,.0f}")
+    down_pct = deal.get("down_pct", 20.0)
+    st.write(f"**Down Payment:** {down_pct}%")
+    loan_amount = deal.get("price", 0) * (1 - down_pct / 100)
+    st.write(f"**Loan Amount:** ${loan_amount:,.0f}")
+
+    st.subheader("💰 Financial Snapshot")
+    st.metric("ROI", f"{deal.get('roi', 0)}%")
+    st.metric("Cap Rate", f"{deal.get('cap', 0)}%")
+    st.metric("Annual Cash Flow", f"${float(deal.get('cf', 0)):,.0f}")
+    st.metric("Score", f"{deal.get('score', 0)}/100")
+
+    st.subheader("👤 Borrower Information")
+    borrower_name = st.text_input("Full Name", value="")
+    borrower_email = st.text_input("Email", value="")
+    income = st.number_input("Monthly Income ($)", value=6000)
+    credit_score = st.slider("Credit Score", 300, 850, 700)
+    dti_ratio = st.number_input("Other Monthly Debt Payments ($)", value=500)
+
+    st.subheader("📋 Loan Qualification Snapshot")
+    st.markdown("**Loan Criteria (Adjustable):**")
+    custom_dscr = st.number_input("Min DSCR to Qualify", value=1.2)
+    custom_dti = st.number_input("Max DTI % to Qualify", value=43.0)
+    custom_ltv = st.number_input("Max LTV % to Qualify", value=80.0)
+    loan_term = st.selectbox("Loan Term (Years)", [15, 20, 30], index=2)
+    interest_rate = st.number_input("Interest Rate (%)", value=7.0, format="%.2f")
+    prop_exp = float(deal.get("expenses", 0))
+    rent_income = float(deal.get("rent", 0))
+
+    monthly_rate = interest_rate / 100 / 12
+    months = loan_term * 12
+    est_mortgage = (loan_amount * monthly_rate) / (1 - (1 + monthly_rate) ** -months) if loan_amount > 0 and interest_rate > 0 else 0
+    total_debt = est_mortgage + dti_ratio
+    dti_percent = (total_debt / income) * 100 if income else 0
+    dscr = rent_income / est_mortgage if est_mortgage else 0
+    noi = rent_income - prop_exp
+    ltv = (loan_amount / deal.get('price', 1)) * 100 if deal.get('price', 0) else 0
+    qualifies_dscr = dscr >= custom_dscr
+    qualifies_dti = dti_percent <= custom_dti
+    qualifies_ltv = ltv <= custom_ltv
+
+    col1, col2 = st.columns(2)
+    col1.metric("Est. Monthly Mortgage (P&I)", f"${est_mortgage:,.0f}")
+    col2.metric("DSCR", f"{dscr:.2f}" + (" ✅" if qualifies_dscr else " ❌"))
+    st.metric("Debt-to-Income Ratio (DTI)", f"{dti_percent:.1f}%" + (" ✅" if qualifies_dti else " ❌"))
+    st.metric("Net Operating Income (NOI)", f"${noi:,.0f}")
+    st.metric("Loan-to-Value (LTV)", f"{ltv:.1f}%" + (" ✅" if qualifies_ltv else " ❌"))
+
+    if qualifies_dscr and qualifies_dti and qualifies_ltv:
+        st.success("✅ Likely to Qualify for Standard Investment Loan")
+    else:
+        st.error("⚠️ One or more loan requirements not met")
+
+    fha_mode = st.checkbox("🏠 Evaluate for FHA Loan")
+    fha_data = {}
+    if fha_mode:
+        fha_credit_ok = credit_score >= 580
+        fha_dti_ok = dti_percent <= 57.0
+        fha_ltv_ok = ltv <= 96.5
+        fha_down_ok = down_pct >= 3.5
+
+        mip_upfront = loan_amount * 0.0175
+        mip_annual = loan_amount * 0.0055
+        mip_monthly = mip_annual / 12
+
+        fha_data = {
+            "FHA Evaluation Enabled": True,
+            "FHA Credit Score OK": fha_credit_ok,
+            "FHA DTI %": f"{dti_percent:.1f}%",
+            "FHA LTV %": f"{ltv:.1f}%",
+            "Down Payment %": f"{down_pct:.1f}%",
+            "FHA Qualifies": fha_credit_ok and fha_dti_ok and fha_ltv_ok and fha_down_ok,
+            "Upfront MIP": f"${mip_upfront:,.0f}",
+            "Monthly MIP": f"${mip_monthly:,.0f}"
+        }
+
+        st.metric("FHA Credit Score OK", "✅" if fha_credit_ok else "❌")
+        st.metric("FHA DTI ≤ 57%", fha_data["FHA DTI %"] + (" ✅" if fha_dti_ok else " ❌"))
+        st.metric("FHA LTV ≤ 96.5%", fha_data["FHA LTV %"] + (" ✅" if fha_ltv_ok else " ❌"))
+        st.metric("Down Payment ≥ 3.5%", fha_data["Down Payment %"] + (" ✅" if fha_down_ok else " ❌"))
+        st.subheader("🏷️ Estimated FHA Mortgage Insurance")
+        st.write(f"Upfront MIP: {fha_data['Upfront MIP']} (added to loan)")
+        st.write(f"Monthly MIP Payment: {fha_data['Monthly MIP']}")
+
+        if fha_data["FHA Qualifies"]:
+            st.success("✅ Deal appears to qualify for FHA loan (assuming owner occupancy).")
+        else:
+            st.warning("⚠️ Deal does not currently meet all FHA loan requirements.")
+
+    st.subheader("📈 Export Full Lender Package")
+    if st.button("Export Lender PDF Package"):
+        from fpdf import FPDF
+        import os
+
+        def sanitize_text(text):
+            return str(text).encode("latin-1", "replace").decode("latin-1")
+
+        def ensure_unicode_font(pdf, ttf_path="DejaVuSansCondensed.ttf"):
+            if os.path.exists(ttf_path):
+                try:
+                    pdf.add_font('DejaVu', '', ttf_path, uni=True)
+                    pdf.set_font('DejaVu', '', 12)
+                    return ('DejaVu', True)
+                except Exception:
+                    pass
+            pdf.set_font('Arial', '', 12)
+            return ('Arial', False)
+
+        pdf = FPDF()
+        pdf.add_page()
+        font_name, unicode_ok = ensure_unicode_font(pdf)
+
+        title = sanitize_text(deal.get("title", "Untitled"))
+        pdf.set_font(font_name, 'B', 16)
+        pdf.cell(0, 10, f"Lender Deal Summary - {title}", ln=True)
+        pdf.ln(2)
+
+        pdf.set_font(font_name, '', 12)
+        def row(label, value):
+            pdf.cell(60, 8, f"{sanitize_text(label)}:", border=0)
+            pdf.cell(0, 8, sanitize_text(value), ln=True)
+
+        row("Borrower", borrower_name)
+        row("Email", borrower_email)
+        row("Property Address", manual_address)
+        row("Type", deal.get("type", "-"))
+        row("Purchase Price", f"${deal.get('price', 0):,.0f}")
+        row("Monthly Rent", f"${deal.get('rent', 0):,.0f}")
+        row("Monthly Expenses", f"${deal.get('expenses', 0):,.0f}")
+        row("Loan Amount", f"${loan_amount:,.0f}")
+        row("Loan Term", f"{loan_term} years")
+        row("Interest Rate", f"{interest_rate:.2f}%")
+        row("Est. Monthly Payment", f"${est_mortgage:,.0f}")
+        row("Annual Cash Flow", f"${float(deal.get('cf', 0)):,.0f}")
+        row("ROI", f"{float(deal.get('roi', 0)):.1f}%")
+        row("Cap Rate", f"{float(deal.get('cap', 0)):.1f}%")
+        row("Score", f"{float(deal.get('score', 0)):.1f}/100")
+
+        pdf.ln(4)
+        pdf.set_font(font_name, 'B', 13)
+        pdf.cell(0, 8, sanitize_text("Borrower Qualification"), ln=True)
+        pdf.set_font(font_name, '', 12)
+        row("Monthly Income", f"${income:,.0f}")
+        row("Other Debts", f"${dti_ratio:,.0f}")
+        row("Credit Score", f"{credit_score}")
+        row("Debt-to-Income Ratio", f"{dti_percent:.1f}%")
+        row("DSCR", f"{dscr:.2f}")
+        row("Loan Ready", "Yes" if qualifies_dscr and qualifies_dti and ltv <= 80 else "No")
+        row("Net Operating Income (NOI)", f"${noi:,.0f}")
+        row("Loan-to-Value (LTV)", f"{ltv:.1f}%")
+
+        if fha_data.get("FHA Evaluation Enabled"):
+            pdf.ln(4)
+            pdf.set_font(font_name, 'B', 13)
+            pdf.cell(0, 8, sanitize_text("FHA Loan Evaluation"), ln=True)
+            pdf.set_font(font_name, '', 12)
+            row("FHA Credit Score OK", "Yes" if fha_data["FHA Credit Score OK"] else "No")
+            row("FHA DTI %", fha_data["FHA DTI %"])
+            row("FHA LTV %", fha_data["FHA LTV %"])
+            row("Down Payment %", fha_data["Down Payment %"])
+            row("FHA Eligible", "Yes" if fha_data["FHA Qualifies"] else "No")
+            row("Upfront MIP", fha_data["Upfront MIP"])
+            row("Monthly MIP", fha_data["Monthly MIP"])
+
+        notes = deal.get("notes", "")
+        if notes:
+            pdf.ln(4)
+            pdf.set_font(font_name, 'B', 12)
+            pdf.cell(0, 8, sanitize_text("Notes & Strategy"), ln=True)
+            pdf.set_font(font_name, '', 11)
+            pdf.multi_cell(0, 8, sanitize_text(notes))
+
+        filename = "lender_package.pdf"
+        pdf.output(filename)
+        with open(filename, "rb") as f:
+            st.download_button(
+                label="Download Lender PDF",
+                data=f.read(),
+                file_name=filename,
+                mime="application/pdf",
+            )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+    with tab2:
+        st.subheader("ℹ️ What Do Lenders Look For?")
+        st.markdown("""
+        Understanding how lenders evaluate your investment property is critical for approval.
+
+        ---
+        ### 🧮 Key Metrics
+        - **DSCR (Debt Service Coverage Ratio)** – Rent ÷ Mortgage. Most lenders want ≥ 1.2
+        - **DTI (Debt-to-Income Ratio)** – Total monthly debts ÷ income. Target ≤ 43%
+        - **LTV (Loan-to-Value)** – Loan ÷ Purchase Price. Target ≤ 80%
+
+        ---
+        ### 💡 Lender Expectations
+        - Stable income and low personal debts
+        - Credit score 620 or higher
+        - Cash reserves (3–6 months recommended)
+        - Positive cash flow or strong DSCR on the deal
+
+        ---
+        ### 🛠 Tips to Qualify
+        - Increase rent or reduce expenses to boost DSCR
+        - Lower your loan amount to improve LTV
+        - Add a co-borrower or pay off debts to reduce DTI
+        - Choose a longer loan term to lower your monthly payment
+
+        This section helps you understand how small changes in your inputs can shift your ability to qualify.
+        """)
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 #---------------------------📊 Portfolio Dashboard----------------------------------------------------
 elif page == "📊 Portfolio Dashboard":
