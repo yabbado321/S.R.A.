@@ -1,3 +1,7 @@
+#Custom License for S.R.A.
+
+#Copyright (c) 2025 Jacob W. Klingman
+
 import streamlit as st
 import numpy as np
 import pandas as pd
