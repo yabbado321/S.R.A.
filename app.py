@@ -13,6 +13,12 @@ import requests
 
 from datetime import datetime
 
+st.set_page_config(
+    page_title="RentIntel",
+    page_icon="favicon.png",  
+    layout="wide"
+)
+
 def sanitize_text(text):
     if text:
        
@@ -99,89 +105,75 @@ def comparison_to_pdf(df, filename="property_comparison.pdf", preferred_ttf="Dej
 
     def fmt_value(key, val):
         """Consistent formatting for numbers by key."""
-        # Handle None/NaN
         if val is None or (isinstance(val, float) and math.isnan(val)):
             return "-"
-        # Percent keys
         if key in ("Cap Rate", "ROI"):
             try:
                 return f"{float(val):.1f}%"
             except Exception:
                 return str(val)
-        # Score (numeric but not %)
         if key == "Score":
             try:
                 return f"{float(val):.1f}"
             except Exception:
                 return str(val)
-        # Currency-ish numeric fields
         if key in ("Purchase Price", "Monthly Rent", "Monthly Expenses", "Cash Flow"):
             try:
                 return f"${float(val):,.2f}"
             except Exception:
                 return str(val)
-        # Fallback
         return str(val)
 
-    # Build PDF
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=False)  # we'll manage breaks to keep section headers together
+    pdf.set_auto_page_break(auto=False)  
     pdf.add_page()
     font_name, unicode_ok = ensure_unicode_font(pdf, preferred_ttf)
 
-    # Title
     pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 16)
     pdf.cell(0, 10, "Property Comparison Report", ln=True)
     pdf.ln(4)
 
-    # Body font
     pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
 
-    # Keys to print per property
     keys = [
         "Purchase Price", "Monthly Rent", "Monthly Expenses",
         "Cash Flow", "Cap Rate", "ROI", "Score"
     ]
 
-    # Optional: sanitize function if you already have one in your app
     def maybe_sanitize(text):
-        # If you defined sanitize_text earlier in your app, use it to handle emojis, etc.
+        
         try:
             return sanitize_text(text)
         except NameError:
             return text
 
-    # Helper: add a soft page break if near bottom
+    
     def maybe_page_break(min_space_needed=40):
-        if pdf.get_y() > (297 - 10 - min_space_needed):  # A4 ~ 297mm; bottom margin ~10
+        if pdf.get_y() > (297 - 10 - min_space_needed):  
             pdf.add_page()
-            # Re-apply font after new page
+            
             if unicode_ok:
                 pdf.set_font(font_name, '', 10)
             else:
                 pdf.set_font('Arial', '', 10)
 
-    # Iterate properties
+   
     for _, row in df.iterrows():
         maybe_page_break(min_space_needed=48)
 
         prop_name = row.get("Property Name", "-")
         prop_name = maybe_sanitize(str(prop_name))
 
-        # Row header strip
         pdf.set_fill_color(240, 240, 240)
         bullet = "• " if unicode_ok else "- "
         pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 11)
         pdf.cell(0, 8, f"{bullet}{prop_name}", ln=True, fill=True)
 
-        # Values block
         pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
         for key in keys:
             val = row.get(key, "-")
             disp = fmt_value(key, val)
-            # Label
             pdf.cell(60, 8, f"{key}:", border=0)
-            # Value
             pdf.cell(0, 8, str(maybe_sanitize(disp)), ln=True)
 
         pdf.ln(3)
@@ -236,7 +228,7 @@ def plot_dual_line_chart(title, x_vals, y1_vals, y1_name, y2_vals, y2_name):
     return fig
 
 # ─────────────────────────── PAGE CONFIG ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="🏡 Smart Rental Analyzer", layout="wide")
+st.set_page_config(page_title=" RentIntel", layout="wide")
 
 # ─────────────────────────── GLOBAL STYLING ─────────────────────────────────────────────────────────────────────────────────────────────────
 custom_css = """
@@ -862,6 +854,9 @@ Score Range:
                 mgmt_pct = st.number_input("Management (% of Rent)", 0.0, 50.0, 8.0, 1.0)
             with col4:
                 vac_pct = st.number_input("Vacancy Loss (% of Rent)", 0.0, 50.0, 5.0, 1.0)
+                interest_rate_qda = st.number_input("Interest Rate (%)", 0.0, 20.0, 6.5)
+                loan_term_qda = st.selectbox("Loan Term (Years)", [15, 20, 30], index=2)
+
 
         ti_month = price * (ti_pct / 100) / 12
         maint = rent * (maint_pct / 100)
@@ -869,8 +864,9 @@ Score Range:
         vacancy = rent * (vac_pct / 100)
 
         loan_amt = price * (1 - down_pct / 100)
-        mort_rate = 0.065 / 12  
-        mortgage = loan_amt * mort_rate
+        mort_rate = interest_rate_qda / 100 / 12
+        months_qda = loan_term_qda * 12
+        mortgage = loan_amt * mort_rate / (1 - (1 + mort_rate)**-months_qda) if loan_amt > 0 and mort_rate > 0 else 0
 
         total_exp = ti_month + maint + mgmt + vacancy + mortgage
         cash_flow = rent - expenses - total_exp
@@ -981,7 +977,7 @@ elif page == "💡 Break-Even Calculator":
     mortgage = npf.pmt(m_int,months,-loan) if loan>0 else 0
 
     def find_breakeven():
-        for r in range(500,5000,10):
+        for r in np.arange(500, 5000, 5):
             maint = r*maint_pct/100
             mgmt = r*mgmt_pct/100
             vac_loss = r*vac/100
@@ -1154,8 +1150,11 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
             if y == sale_year:
 
                 prop_value_at_sale = price * ((1 + appr / 100) ** y)
+                gain = prop_value_at_sale - price
+                cap_gains_tax = gain * 0.15 
                 selling_costs = prop_value_at_sale * 0.06
-                net_sale_proceeds = equity_list[y-1] + dp - selling_costs  
+                net_sale_proceeds = equity_list[y-1] + dp - selling_costs - cap_gains_tax
+
                 total_cash_flow = after_tax_cf_list[y-1] + net_sale_proceeds
                 cash_flows.append(total_cash_flow)
             else:
@@ -1215,7 +1214,7 @@ elif page == "📑 Lender Package":
 
     st.subheader("💰 Financial Snapshot")
     st.metric("ROI", f"{deal.get('roi', 0)}%")
-    st.metric("Cap Rate", f"{deal.get('cap', 0)}%")
+    st.metric("🏦 Cap Rate", f"{deal.get('cap', 0)}%")
     st.metric("Annual Cash Flow", f"${float(deal.get('cf', 0)):,.0f}")
     st.metric("Score", f"{deal.get('score', 0)}/100")
 
@@ -1271,6 +1270,9 @@ elif page == "📑 Lender Package":
         mip_upfront = loan_amount * 0.0175
         mip_annual = loan_amount * 0.0055
         mip_monthly = mip_annual / 12
+        total_monthly_payment = est_mortgage + mip_monthly
+        st.metric("💰 Total Monthly Payment (Incl. MIP)", f"${total_monthly_payment:,.0f}")
+
 
         fha_data = {
             "FHA Evaluation Enabled": True,
