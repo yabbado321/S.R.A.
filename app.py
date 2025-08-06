@@ -13,6 +13,32 @@ import requests
 
 from datetime import datetime
 
+logo_path = "assets/RI-Logo.png"
+
+import base64
+
+def load_logo_base64(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+logo_base64 = load_logo_base64("assets/RI-Logo.png")
+
+st.markdown(f"""
+<div style='
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    margin-bottom: 20px;
+'>
+    <img src="data:image/png;base64,{logo_base64}" width="60" style="margin-bottom: 0.5rem;" />
+    <h1 style='font-size:28px; font-weight:700; color:#f3f3f3; margin: 0;'>Smart Rental Analyzer</h1>
+</div>
+""", unsafe_allow_html=True)
+
+
 def sanitize_text(text):
     if text:
        
@@ -68,6 +94,8 @@ def portfolio_pdf(df, filename="portfolio_summary.pdf"):
     return filename
 
 
+
+
 def comparison_to_pdf(df, filename="property_comparison.pdf", preferred_ttf="DejaVuSansCondensed.ttf"):
     """
     Create a Property Comparison PDF from a DataFrame with columns:
@@ -99,89 +127,88 @@ def comparison_to_pdf(df, filename="property_comparison.pdf", preferred_ttf="Dej
 
     def fmt_value(key, val):
         """Consistent formatting for numbers by key."""
-        # Handle None/NaN
+        
         if val is None or (isinstance(val, float) and math.isnan(val)):
             return "-"
-        # Percent keys
+       
         if key in ("Cap Rate", "ROI"):
             try:
                 return f"{float(val):.1f}%"
             except Exception:
                 return str(val)
-        # Score (numeric but not %)
+        
         if key == "Score":
             try:
                 return f"{float(val):.1f}"
             except Exception:
                 return str(val)
-        # Currency-ish numeric fields
+       
         if key in ("Purchase Price", "Monthly Rent", "Monthly Expenses", "Cash Flow"):
             try:
                 return f"${float(val):,.2f}"
             except Exception:
                 return str(val)
-        # Fallback
+        
         return str(val)
 
-    # Build PDF
+    
     pdf = FPDF()
-    pdf.set_auto_page_break(auto=False)  # we'll manage breaks to keep section headers together
+    pdf.set_auto_page_break(auto=False)  
     pdf.add_page()
     font_name, unicode_ok = ensure_unicode_font(pdf, preferred_ttf)
 
-    # Title
+    
     pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 16)
     pdf.cell(0, 10, "Property Comparison Report", ln=True)
     pdf.ln(4)
 
-    # Body font
+    
     pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
 
-    # Keys to print per property
     keys = [
         "Purchase Price", "Monthly Rent", "Monthly Expenses",
         "Cash Flow", "Cap Rate", "ROI", "Score"
     ]
 
-    # Optional: sanitize function if you already have one in your app
+    
     def maybe_sanitize(text):
-        # If you defined sanitize_text earlier in your app, use it to handle emojis, etc.
+      
         try:
             return sanitize_text(text)
         except NameError:
             return text
 
-    # Helper: add a soft page break if near bottom
+    
     def maybe_page_break(min_space_needed=40):
-        if pdf.get_y() > (297 - 10 - min_space_needed):  # A4 ~ 297mm; bottom margin ~10
+        if pdf.get_y() > (297 - 10 - min_space_needed):  
             pdf.add_page()
-            # Re-apply font after new page
+           
             if unicode_ok:
                 pdf.set_font(font_name, '', 10)
             else:
                 pdf.set_font('Arial', '', 10)
 
-    # Iterate properties
+  
     for _, row in df.iterrows():
         maybe_page_break(min_space_needed=48)
 
         prop_name = row.get("Property Name", "-")
         prop_name = maybe_sanitize(str(prop_name))
 
-        # Row header strip
+        
         pdf.set_fill_color(240, 240, 240)
         bullet = "• " if unicode_ok else "- "
         pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 11)
         pdf.cell(0, 8, f"{bullet}{prop_name}", ln=True, fill=True)
 
-        # Values block
+       
         pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
         for key in keys:
             val = row.get(key, "-")
             disp = fmt_value(key, val)
-            # Label
+         
             pdf.cell(60, 8, f"{key}:", border=0)
-            # Value
+           
             pdf.cell(0, 8, str(maybe_sanitize(disp)), ln=True)
 
         pdf.ln(3)
@@ -190,24 +217,33 @@ def comparison_to_pdf(df, filename="property_comparison.pdf", preferred_ttf="Dej
     return filename
 
 
+import streamlit as st
+import streamlit.components.v1 as components
 
-st.markdown("""
-<script>
-  function detectDevice() {
-      let width = window.innerWidth;
-      if (width <= 768) {
-          document.body.classList.add('mobile');
-          document.body.classList.remove('desktop');
-      } else {
-          document.body.classList.add('desktop');
-          document.body.classList.remove('mobile');
-      }
-  }
+from streamlit_js_eval import streamlit_js_eval
 
-  window.addEventListener('resize', detectDevice);
-  window.onload = detectDevice;
-</script>
-""", unsafe_allow_html=True)
+
+
+layout_override = st.sidebar.radio(
+    "🔧 Layout Mode (Dev Only)",
+    ["Auto Detect", "Force Desktop", "Force Mobile"],
+    index=0
+)
+
+from streamlit_js_eval import streamlit_js_eval
+
+def get_device_type():
+    if layout_override == "Force Desktop":
+        return "desktop"
+    elif layout_override == "Force Mobile":
+        return "mobile"
+    else:
+        width = streamlit_js_eval(js_expressions="screen.width", key="device-width")
+        if width is None:
+            return "unknown"
+        return "mobile" if width <= 768 else "desktop"
+device = get_device_type()
+st.write(f"You are using a **{device}** device.")
 
 def export_csv_with_watermark(df):
     watermark = f"# Exported by RentIntel on {datetime.now().strftime('%Y-%m-%d')}\n"
@@ -235,10 +271,7 @@ def plot_dual_line_chart(title, x_vals, y1_vals, y1_name, y2_vals, y2_name):
     )
     return fig
 
-# ─────────────────────────── PAGE CONFIG ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="🏡 Smart Rental Analyzer", layout="wide")
 
-# ─────────────────────────── GLOBAL STYLING ─────────────────────────────────────────────────────────────────────────────────────────────────
 custom_css = """
 <style>
 :root {
@@ -285,7 +318,6 @@ input, textarea { background:#2a2a2a !important; color: var(--text) !important; 
 st.markdown(custom_css, unsafe_allow_html=True)
 
 
-# ── Sticky Deal Summary Bar ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 def render_summary_bar(title, items):
     rows = "".join([
         f"<div style='flex:1 1 200px;padding:0.25rem 1rem;'>"
@@ -304,7 +336,6 @@ def render_summary_bar(title, items):
     st.markdown(html, unsafe_allow_html=True)
 
 
-# ─────────────────────────── TOOLTIP HELPER ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 TOOLTIP = """
 <span class='tooltip'>[?]<span class='tooltiptext'>{}</span></span>
 """
@@ -313,10 +344,8 @@ TOOLTIP = """
 def tt(label:str, tip:str):
     return f"**{label}** {TOOLTIP.format(tip)}"
 
-# ─────────────────────────── HEADER / NAV ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-st.markdown("<h1 style='text-align:center;'>🏡 Smart Rental Analyzer</h1>", unsafe_allow_html=True)
-col_l, col_c, col_r = st.columns([2.2,2,0.8])
-with col_c: st.image("logo.png", width=200)
+
+
 st.markdown("<p style='text-align:center; font-size:14px; color:gray;'></p>", unsafe_allow_html=True)
 
 
@@ -401,7 +430,6 @@ def plot_line_chart(title, x_vals, y_dict):
     return fig
 
 
-# ─────────────────────────── HOME ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 if page == "🏠 Home":
     st.markdown("---")
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -471,6 +499,7 @@ if page == "🏠 Home":
 
     styled = pd.DataFrame(comp_data).set_index('Feature')
     st.dataframe(styled, use_container_width=True)
+
 
 
 elif page == "👋 Get Started":
@@ -649,9 +678,16 @@ Click **Next** to begin.
 
     st.markdown("</div>", unsafe_allow_html=True)
 
+    device = get_device_type()
+
+    if device == "mobile":
+        page = st.selectbox("📱 Mobile Navigation", TABS)
+    else:
+        page = st.sidebar.selectbox("📂 Desktop Navigation", TABS)
+
+    st.session_state.page = page
 
 
-# ─────────────────────────── QUICK DEAL ANALYZER ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 elif page == "📊 Quick Deal Analyzer":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -898,7 +934,6 @@ Score Range:
         st.download_button("⬇️ Download Expense Breakdown (CSV)", csv_exp, "monthly_expense_breakdown.csv", "text/csv")
 
 
-# ───────────────────────────"👥 Tenant Affordability Tool"────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 elif page == "👥 Tenant Affordability Tool":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -949,7 +984,6 @@ You can adjust the ratio for stricter or more lenient screening criteria.
 
 
 
-# ─────────────────────────── BREAK-EVEN CALCULATOR ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "💡 Break-Even Calculator":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("💡 Break-Even Calculator")
@@ -1009,7 +1043,7 @@ elif page == "💡 Break-Even Calculator":
         st.error("❌ No break-even rent found in range. Try adjusting inputs.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ─────────────────────────── Multi-Year ROI + Tax Insights ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
 elif page == "📘 Multi-Year ROI + Tax Insights":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("📘 Multi-Year ROI + Tax Insights")
@@ -1183,9 +1217,7 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# 📘 Lending 101 Tab
 
 elif page == "📑 Lender Package":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -1423,7 +1455,6 @@ elif page == "📑 Lender Package":
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-#---------------------------📊 Portfolio Dashboard----------------------------------------------------
 elif page == "📊 Portfolio Dashboard":
     import os
     from fpdf import FPDF
@@ -1431,7 +1462,6 @@ elif page == "📊 Portfolio Dashboard":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("📊 Portfolio Dashboard")
 
-    # ─────────────────────────── Helpers ───────────────────────────
     def safe_float(x, default=np.nan):
         if x is None:
             return default
@@ -1553,7 +1583,6 @@ elif page == "📊 Portfolio Dashboard":
         pdf.output(filename)
         return filename
 
-    # ─────────────────────────── Load deals ───────────────────────────
     deals = st.session_state.get("deals", [])
     if not deals:
         st.info("No deals saved yet. Add one in **📊 Quick Deal Analyzer**, then return here.")
@@ -1562,7 +1591,6 @@ elif page == "📊 Portfolio Dashboard":
 
     df_all = build_portfolio_df(deals)
 
-    # ─────────────────────────── Filters ───────────────────────────
     st.subheader("🔎 Filters")
     colf1, colf2, colf3 = st.columns([2, 2, 2])
     with colf1:
@@ -1606,7 +1634,6 @@ elif page == "📊 Portfolio Dashboard":
         st.markdown("</div>", unsafe_allow_html=True)
         st.stop()
 
-    # ─────────────────────────── Summary bar ───────────────────────────
     total_cf = df["Cash Flow ($/yr)"].sum()
     avg_roi = df["ROI (%)"].mean(skipna=True)
     avg_cap = df["Cap Rate (%)"].mean(skipna=True)
@@ -1622,7 +1649,6 @@ elif page == "📊 Portfolio Dashboard":
         ],
     )
 
-    # ─────────────────────────── Charts ───────────────────────────
     st.subheader("📈 Portfolio Charts")
 
     
@@ -1685,7 +1711,6 @@ elif page == "📊 Portfolio Dashboard":
         )
         st.plotly_chart(pie, use_container_width=True)
 
-    # ─────────────────────────── Table + Sorting ───────────────────────────
     st.subheader("📋 Properties")
     sort_col = st.selectbox(
         "Sort by",
@@ -1698,7 +1723,6 @@ elif page == "📊 Portfolio Dashboard":
     view_cols = ["Property", "Type", "Cash Flow ($/yr)", "Cash Flow ($/mo)", "ROI (%)", "Cap Rate (%)", "Score", "Status", "Tags (text)"]
     st.dataframe(df_sorted[view_cols], use_container_width=True)
 
-    # ─────────────────────────── Exports ───────────────────────────
     st.subheader("⬇ Export")
     colx1, colx2 = st.columns(2)
 
@@ -1720,7 +1744,6 @@ elif page == "📊 Portfolio Dashboard":
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ──────────────────────────── DEAL HISTORY ────────────────────────────
 
 elif page == "📂 Deal History":
     import os, json, tempfile, re
@@ -1829,7 +1852,6 @@ elif page == "📂 Deal History":
                     key=f"pdf_export_{dtype.replace(' ', '_')}"
                 )
 
-# ─────────────────Monte Carlo Sim ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 elif page == "📈 Monte Carlo Simulator":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -1982,7 +2004,6 @@ This tool helps you **quantify uncertainty** and better understand how your assu
         st.markdown("</div>", unsafe_allow_html=True)
 
 
-# ─────────────────────────── PROPERTY COMPARISON ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🏘 Property Comparison":
     import os
     from fpdf import FPDF
@@ -1990,7 +2011,6 @@ elif page == "🏘 Property Comparison":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🏘 Property Comparison")
 
-    # ──────────── Helpers ────────────
     def ensure_unicode_font(pdf: FPDF, ttf_path="DejaVuSansCondensed.ttf"):
         """Try to register a Unicode TTF font; fallback to Arial if missing."""
         if os.path.exists(ttf_path):
@@ -2009,7 +2029,6 @@ elif page == "🏘 Property Comparison":
         pdf.add_page()
         font_name, unicode_ok = ensure_unicode_font(pdf)
 
-        # Title
         pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 16)
         pdf.cell(0, 10, "Property Comparison Report", ln=True)
         pdf.ln(5)
@@ -2026,16 +2045,16 @@ elif page == "🏘 Property Comparison":
             if "sanitize_text" in globals():
                 prop_name = sanitize_text(prop_name)
 
-            # Property header row
+            
             pdf.set_fill_color(240, 240, 240)
             pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 11)
             pdf.cell(0, 8, f"{bullet}{prop_name}", ln=True, fill=True)
 
-            # Metrics rows
+            
             pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
             for key in keys:
                 val = row.get(key, "-")
-                # Format numbers nicely
+               
                 if isinstance(val, float):
                     if key in ["Cap Rate", "ROI"]:
                         val = f"{val:.1f}%"
@@ -2058,11 +2077,10 @@ elif page == "🏘 Property Comparison":
         watermark = f"# Exported by RentIntel on {datetime.now().strftime('%Y-%m-%d')}\n"
         return (watermark + df.to_csv(index=False)).encode()
 
-    # ──────────── State ────────────
+
     if "comparison_inputs" not in st.session_state:
         st.session_state["comparison_inputs"] = []
 
-    # ──────────── Quick Deal Snapshot Form ────────────
     with st.form("snapshot_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
@@ -2078,7 +2096,6 @@ elif page == "🏘 Property Comparison":
         submitted = st.form_submit_button("➕ Add Property (Auto‑Calculate)")
 
     if submitted:
-        # Mortgage calculation (handles 0% rate)
         loan_amount = price * (1 - down_payment_pct / 100)
         monthly_rate = (interest_rate / 100) / 12
         n_payments = int(loan_years * 12)
@@ -2090,7 +2107,6 @@ elif page == "🏘 Property Comparison":
         else:
             mortgage_payment = 0.0
 
-        # Auto‑calculated fields
         cash_flow = rent - expenses - mortgage_payment
         noi = (rent - expenses) * 12
         cap_rate = (noi / price) * 100 if price > 0 else 0.0
@@ -2098,8 +2114,6 @@ elif page == "🏘 Property Comparison":
         down_payment = price * (down_payment_pct / 100)
         roi = (annual_cash_flow / down_payment) * 100 if down_payment > 0 else 0.0
 
-        # Deal Score (same spirit as your Quick Deal Analyzer weighting)
-        # 60% ROI (cap at 20%), 30% Cap (cap at 10%), ±10 for CF sign
         roi_score = min(roi, 20) / 20 * 60
         cap_score = min(cap_rate, 10) / 10 * 30
         cf_score = 10 if cash_flow > 0 else -10
@@ -2117,7 +2131,6 @@ elif page == "🏘 Property Comparison":
         })
         st.success(f"Quick Deal Snapshot added: {name or 'Untitled Deal'}")
 
-    # ──────────── Comparison Table & Row Actions ────────────
     if len(st.session_state["comparison_inputs"]) == 0:
         st.info("No properties added yet. Use the form above to add properties for comparison.")
     else:
@@ -2127,7 +2140,6 @@ elif page == "🏘 Property Comparison":
 
         
 
-        # Per‑row delete controls
         st.subheader("🗂 Manage Properties")
         for idx, prop in enumerate(list(st.session_state["comparison_inputs"])):
             c1, c2, c3, c4, c5 = st.columns([4, 2, 2, 2, 1])
@@ -2141,17 +2153,14 @@ elif page == "🏘 Property Comparison":
                 st.caption(f"CF/mo: ${prop.get('Cash Flow', 0):,.0f}")
             with c5:
                 if st.button("🗑", key=f"del_prop_{idx}", help="Delete this property"):
-                    # Remove by index and rerun to refresh table/UI
                     st.session_state["comparison_inputs"].pop(idx)
                     st.rerun()
 
         st.markdown("---")
-        # Clear all
         if st.button("🧹 Clear All Properties"):
             st.session_state["comparison_inputs"] = []
             st.rerun()
 
-        # Exports
         col1, col2 = st.columns(2)
         with col1:
             csv_bytes = export_csv(comparison_df)
@@ -2173,7 +2182,6 @@ elif page == "🏘 Property Comparison":
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ─────────────────────────── ADVANCED ANALYTICS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🧪 Advanced Analytics":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🧪 Advanced Analytics & Forecasting (Pro)")
@@ -2298,7 +2306,6 @@ elif page == "🧪 Advanced Analytics":
 
 
 
-# ─────────────────────────── REHAB & REFI ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🏚 Rehab & Refi":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("🏚 Renovation & Refinance Tools (Pro)")
@@ -2390,7 +2397,6 @@ elif page == "📊 Deal Summary Comparison":
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-#────────────────── Tax Benefits ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "💸 Tax Benefits":
     import re, unicodedata
 
@@ -2398,12 +2404,11 @@ elif page == "💸 Tax Benefits":
     st.header("💸 Landlord Tax Benefits — Practical Guide")
     st.caption("Educational overview. Not tax advice. Verify with a licensed tax professional and current IRS publications.")
 
-    # ---------- Helpers ----------
     def normalize_text_md(s: str) -> str:
         if not s:
             return s
         s = unicodedata.normalize("NFKC", s)
-        s = re.sub(r"[\u200B-\u200D\uFEFF]", "", s)  # strip zero-width chars
+        s = re.sub(r"[\u200B-\u200D\uFEFF]", "", s) 
         s = s.replace("∗", "*")
         return s
 
@@ -2421,7 +2426,6 @@ elif page == "💸 Tax Benefits":
     def irs_link(label: str, url: str) -> str:
         return f'<a href="{url}" target="_blank">{label}</a>'
 
-    # ---------- IRS links (curated primary sources) ----------
     IRS = {
         "Pub527": ("Publication 527 — Residential Rental Property", "https://www.irs.gov/publications/p527"),
         "Pub925": ("Publication 925 — Passive Activity & At-Risk Rules", "https://www.irs.gov/publications/p925"),
@@ -2439,7 +2443,6 @@ elif page == "💸 Tax Benefits":
         "PMI": ("Mortgage Insurance Premiums (See Instructions)", "https://www.irs.gov/credits-deductions/individuals/mortgage-insurance-premiums"),
     }
 
-    # ---------- Topics data (Title, Body builder) ----------
     def sec_core_writeoffs():
         t = "Core Write‑Offs (Schedule E)"
         b = f"""
@@ -2722,7 +2725,6 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
 """
         return t, b
 
-    # helpers to format callout and link list
     def callout_html(title, body):
         return f"""
 <div style="border-left:4px solid #4ade80; padding:10px 12px; background:#111827; border-radius:8px; margin:8px 0;">
@@ -2735,7 +2737,6 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
         links = [irs_link(IRS[k][0], IRS[k][1]) for k in keys if k in IRS]
         return " • ".join(links)
 
-    # Build the master list of sections
     SECTIONS = [
         sec_core_writeoffs(),
         sec_depreciation(),
@@ -2751,13 +2752,11 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
         sec_sale_gain_recapture(),
     ]
 
-    # ---------- Filters / Search ----------
     st.subheader("Find What You Need Fast")
     left, right = st.columns([2, 1])
     with left:
         query = st.text_input("Search topics or keywords (e.g., “depreciation”, “vehicle”, “QBI”, “loss”):", "").strip().lower()
     with right:
-        # allow quick topic selection
         titles = [t for t, _ in SECTIONS]
         selected = st.multiselect("Show only these topics (optional):", titles, default=[])
 
@@ -2767,7 +2766,6 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
         hay = (title + " " + body).lower()
         return all(word in hay for word in q.split())
 
-    # ---------- Render ----------
     shown = 0
     for title, body in SECTIONS:
         if selected and title not in selected:
@@ -2787,7 +2785,6 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
 """)
 
     st.markdown("</div>", unsafe_allow_html=True)
-# ─────────────────────────── GLOSSARY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "📖 Help & Info":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.header("📖 Real Estate Glossary & Methodology")
@@ -2795,15 +2792,12 @@ elif page == "📖 Help & Info":
 
     search_term = st.text_input("🔎 Search for a term (e.g. 'cap rate', 'loan')").strip().lower()
 
-    # Helper to filter a block by search term
     def show_if_match(title: str, terms: list[str]):
         if not search_term:
             return True
         combined = title.lower() + " " + " ".join(terms).lower()
         return search_term in combined
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 💰 Cash Flow & Returns
-    # ─────────────────────────────────────────────────────────────────────────────
+
     with st.expander("💰 Cash Flow & Returns"):
         st.markdown("""
 - **Cash Flow** 📈: Money left over each month after paying all expenses and debt service.
@@ -2827,9 +2821,6 @@ elif page == "📖 Help & Info":
 - **Payback Period** ⏱️: Time to recover initial cash investment from cash flow.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 🏠 Property Terms
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🏠 Property Terms"):
         st.markdown("""
 - **Purchase Price** 💲: Contract price to acquire the property.
@@ -2849,9 +2840,6 @@ elif page == "📖 Help & Info":
 - **ADU** 🧩: Accessory dwelling unit (extra rentable space).
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 📊 Deal Analysis Metrics
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📊 Deal Analysis Metrics"):
         st.markdown("""
 - **Gross Scheduled Rent (GSR)** 🗓️: Rent at 100% occupancy before losses.
@@ -2871,9 +2859,6 @@ elif page == "📖 Help & Info":
 - **Sensitivity / Scenario** 🔁: Vary key inputs to see outcome ranges.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 📈 Valuation & Underwriting
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📈 Valuation & Underwriting"):
         st.markdown("""
 - **Income Approach** 💼: Value from NOI and cap rate (Value = NOI / Cap).
@@ -2887,9 +2872,6 @@ elif page == "📖 Help & Info":
 - **Margin of Safety** 🧩: Cushion between projections and breakeven thresholds.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 📉 Financing & Mortgages
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📉 Financing & Mortgages"):
         st.markdown("""
 - **Down Payment** 💳: Cash invested at purchase (e.g., 20%).
@@ -2907,9 +2889,6 @@ elif page == "📖 Help & Info":
 - **Seasoning** 🗓️: Time a loan or rent history must exist for underwriting.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 🧾 Taxes & Write‑Offs
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🧾 Taxes & Write-Offs"):
         st.markdown("""
 - **Depreciation** 📉: Residential 27.5‑year straight‑line (building only).
@@ -2926,9 +2905,6 @@ elif page == "📖 Help & Info":
 - **Audit Trail** 📚: Receipts & records supporting deductions.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 🧰 Operating Expenses & Management
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🧰 Operating Expenses & Management"):
         st.markdown("""
 - **Repairs vs. Improvements** 🛠️: Repairs are expensed; improvements are capitalized/depreciated.
@@ -2942,9 +2918,6 @@ elif page == "📖 Help & Info":
 - **Bad Debt / Concessions** 🚫: Uncollectible rent or discounts.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 🧠 Strategy Terms
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🧠 Strategy Terms"):
         st.markdown("""
 - **BRRRR** 🔁: Buy, Rehab, Rent, Refinance, Repeat.
@@ -2958,9 +2931,6 @@ elif page == "📖 Help & Info":
 - **Waterfall / Promote** 💧: Profit split tiers after hurdles.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 🏗️ Property Types & Use Cases
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🏗️ Property Types & Use Cases"):
         st.markdown("""
 - **SFR / SFH** 🏡: Single‑family rental/home.
@@ -2972,9 +2942,6 @@ elif page == "📖 Help & Info":
 - **Mixed‑Use** 🧩: Combine residential + retail/office.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 📜 Legal & Structures
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📜 Legal & Deal Structures"):
         st.markdown("""
 - **LLC / LP / GP** 🧾: Common ownership/management structures.
@@ -2988,9 +2955,6 @@ elif page == "📖 Help & Info":
 - **Escrow / Earnest Money** 💰: Neutral funds holder / good‑faith deposit.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 📄 Documents & Due Diligence
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📄 Documents & Due Diligence"):
         st.markdown("""
 - **PSA (Purchase & Sale Agreement)** ✍️: Contract to buy/sell.
@@ -3004,9 +2968,6 @@ elif page == "📖 Help & Info":
 - **Estoppels** 📝: Tenant confirms lease terms & balances.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 🛏️ Short‑ & Mid‑Term Rentals (STR/MTR)
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🛏️ Short‑ & Mid‑Term Rentals (STR/MTR)"):
         st.markdown("""
 - **ADR (Avg Daily Rate)** 📅: Average nightly rate.
@@ -3017,9 +2978,6 @@ elif page == "📖 Help & Info":
 - **Local Ordinances** 🏛️: STR permits, caps, and taxes.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 🏬 Commercial & Lease Types
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("🏬 Commercial & Lease Types"):
         st.markdown("""
 - **NNN (Triple Net)** 🧾: Tenant pays taxes, insurance, maintenance.
@@ -3031,9 +2989,6 @@ elif page == "📖 Help & Info":
 - **Option to Renew / Termination** 🔁: Lease flexibility provisions.
         """)
 
-    # ─────────────────────────────────────────────────────────────────────────────
-    # 📊 Data & Methodology Disclaimer
-    # ─────────────────────────────────────────────────────────────────────────────
     with st.expander("📊 Data & Methodology Disclaimer"):
         st.markdown("""
 **Where does the data come from?**  
