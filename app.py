@@ -306,7 +306,7 @@ def tt(label:str, tip:str):
     return f"**{label}** {TOOLTIP.format(tip)}"
 
 # ─────────────────────────── HEADER / NAV ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-st.markdown("<h1 style='text-align:center;'>🏡 Smart Rental Analyzer</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'>🏡 RentIntel's - Smart Rental Analyzer</h1>", unsafe_allow_html=True)
 col_l, col_c, col_r = st.columns([2.2,2,0.8])
 with col_c: st.image("logo.png", width=200)
 st.markdown("<p style='text-align:center; font-size:14px; color:gray;'></p>", unsafe_allow_html=True)
