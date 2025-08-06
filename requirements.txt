@@ -4,4 +4,3 @@ pandas
 plotly
 numpy-financial
 fpdf
-streamlit-js-eval
