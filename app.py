@@ -13,14 +13,14 @@ import requests
 
 from datetime import datetime
 
-logo_path = "assets/RI-Logo.png"
+
 
 import base64
 
-def load_logo_base64(path):
-    with open(path, "rb") as f:
-        data = f.read()
-    return base64.b64encode(data).decode()
+def load_logo_base64(filename):
+    full_path = os.path.join(os.path.dirname(__file__), filename)
+    with open(full_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 logo_base64 = load_logo_base64("assets/RI-Logo.png")
 
