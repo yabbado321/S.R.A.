@@ -17,9 +17,12 @@ from datetime import datetime
 
 import base64
 
-def load_logo_base64(filename):
-    full_path = os.path.join(os.path.dirname(__file__), filename)
-    with open(full_path, "rb") as f:
+def load_logo_base64(path):
+    import os
+    if not os.path.exists(path):
+        st.warning(f"⚠️ Logo not found at {path}")
+        return ""
+    with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode()
 
 logo_base64 = load_logo_base64("assets/RI-Logo.png")
