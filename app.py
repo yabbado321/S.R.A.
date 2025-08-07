@@ -355,7 +355,8 @@ page = st.selectbox("Navigate to:", [
     "📈 Monte Carlo Simulator",
     "🏚 Rehab & Refi",
     "💸 Tax Benefits",
-    "📖 Help & Info"
+    "📖 Help & Info",
+    "📄 Privacy & Disclaimer"
 ], index=[
     "🏠 Home",
     "👋 Get Started",
@@ -371,7 +372,8 @@ page = st.selectbox("Navigate to:", [
     "📈 Monte Carlo Simulator",
     "🏚 Rehab & Refi",
     "💸 Tax Benefits",
-    "📖 Help & Info"
+    "📖 Help & Info",
+    "📄 Privacy & Disclaimer"
 ].index(st.session_state.page), key="page")
 
 
@@ -476,7 +478,7 @@ elif page == "👋 Get Started":
     data = st.session_state.wizard_data
 
     if step == 1:
-        st.header("👋 Welcome to RentInel's Smart Rental Analyzer!")
+        st.header("👋 Welcome to RentIntel's Smart Rental Analyzer!")
         st.markdown("---")
         st.markdown("**Features:** Quick Deal Analyzer, ROI & Projections, Break-Even, CSV/PDF Exports, Premium Pro tools")
         st.markdown("---")
@@ -893,6 +895,8 @@ Score Range:
         csv_exp = export_csv_with_watermark(exp_df)
         st.download_button("⬇️ Download Expense Breakdown (CSV)", csv_exp, "monthly_expense_breakdown.csv", "text/csv")
 
+    st.markdown("_Results are estimates based on user inputs and assumptions. This does not constitute financial or investment advice._", unsafe_allow_html=True)
+
 
 # ───────────────────────────"👥 Tenant Affordability Tool"────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -941,6 +945,7 @@ You can adjust the ratio for stricter or more lenient screening criteria.
         """)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Affordability results are general estimates and should not replace professional tenant screening or financial assessment._", unsafe_allow_html=True)
 
 
 
@@ -1004,6 +1009,8 @@ elif page == "💡 Break-Even Calculator":
     else:
         st.error("❌ No break-even rent found in range. Try adjusting inputs.")
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Break-even rent is a simulated estimate. Actual performance may vary and this does not constitute financial advice._", unsafe_allow_html=True)
+
 
 # ─────────────────────────── Multi-Year ROI + Tax Insights ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "📘 Multi-Year ROI + Tax Insights":
@@ -1181,6 +1188,8 @@ elif page == "📘 Multi-Year ROI + Tax Insights":
         ))
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_This tool provides estimates only. ROI, IRR, and tax savings projections are for educational use and should not be considered financial advice._", unsafe_allow_html=True)
+
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -1423,6 +1432,8 @@ elif page == "📑 Lender Package":
         """)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_The generated report is an estimate based on self-reported data. It does not guarantee lender qualification or legal compliance._", unsafe_allow_html=True)
+
 
 
 #---------------------------📊 Portfolio Dashboard----------------------------------------------------
@@ -1720,6 +1731,8 @@ elif page == "📊 Portfolio Dashboard":
             )
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Portfolio metrics are based on your input data and assumptions. RentIntel does not guarantee returns or performance._", unsafe_allow_html=True)
+
 
 
 # ──────────────────────────── DEAL HISTORY ────────────────────────────
@@ -1830,6 +1843,7 @@ elif page == "📂 Deal History":
                     mime="application/pdf",
                     key=f"pdf_export_{dtype.replace(' ', '_')}"
                 )
+                
 
 # ─────────────────Monte Carlo Sim ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -1896,8 +1910,8 @@ This tool helps you **quantify uncertainty** and better understand how your assu
             years = st.slider("Years to Simulate", 1, 30, 5)
             num_simulations = st.slider("Number of Simulations", 100, 2000, 500, step=100)
 
-            rent_range = st.slider("Rent Growth Range (%)", 0.0, 10.0, (0.0, 2.0))  # Narrowed range
-            appr_range = st.slider("Appreciation Range (%)", 0.0, 10.0, (1.0, 2.0))  # Lower appreciation
+            rent_range = st.slider("Rent Growth Range (%)", 0.0, 10.0, (0.0, 2.0))  
+            appr_range = st.slider("Appreciation Range (%)", 0.0, 10.0, (1.0, 2.0))  
             exp_range = st.slider("Expense Growth Range (%)", 0.0, 10.0, (3.0, 6.0))
 
            
@@ -1982,6 +1996,8 @@ This tool helps you **quantify uncertainty** and better understand how your assu
         st.plotly_chart(fig_irr, use_container_width=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("_Results represent statistical simulations, not forecasts. Use for educational purposes only._", unsafe_allow_html=True)
+
 
 
 # ─────────────────────────── PROPERTY COMPARISON ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2011,7 +2027,6 @@ elif page == "🏘 Property Comparison":
         pdf.add_page()
         font_name, unicode_ok = ensure_unicode_font(pdf)
 
-        # Title
         pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 16)
         pdf.cell(0, 10, "Property Comparison Report", ln=True)
         pdf.ln(5)
@@ -2028,16 +2043,13 @@ elif page == "🏘 Property Comparison":
             if "sanitize_text" in globals():
                 prop_name = sanitize_text(prop_name)
 
-            # Property header row
             pdf.set_fill_color(240, 240, 240)
             pdf.set_font(font_name if unicode_ok else 'Arial', 'B', 11)
             pdf.cell(0, 8, f"{bullet}{prop_name}", ln=True, fill=True)
 
-            # Metrics rows
             pdf.set_font(font_name if unicode_ok else 'Arial', '', 10)
             for key in keys:
                 val = row.get(key, "-")
-                # Format numbers nicely
                 if isinstance(val, float):
                     if key in ["Cap Rate", "ROI"]:
                         val = f"{val:.1f}%"
@@ -2080,7 +2092,6 @@ elif page == "🏘 Property Comparison":
         submitted = st.form_submit_button("➕ Add Property (Auto‑Calculate)")
 
     if submitted:
-        # Mortgage calculation (handles 0% rate)
         loan_amount = price * (1 - down_payment_pct / 100)
         monthly_rate = (interest_rate / 100) / 12
         n_payments = int(loan_years * 12)
@@ -2092,7 +2103,6 @@ elif page == "🏘 Property Comparison":
         else:
             mortgage_payment = 0.0
 
-        # Auto‑calculated fields
         cash_flow = rent - expenses - mortgage_payment
         noi = (rent - expenses) * 12
         cap_rate = (noi / price) * 100 if price > 0 else 0.0
@@ -2100,8 +2110,6 @@ elif page == "🏘 Property Comparison":
         down_payment = price * (down_payment_pct / 100)
         roi = (annual_cash_flow / down_payment) * 100 if down_payment > 0 else 0.0
 
-        # Deal Score (same spirit as your Quick Deal Analyzer weighting)
-        # 60% ROI (cap at 20%), 30% Cap (cap at 10%), ±10 for CF sign
         roi_score = min(roi, 20) / 20 * 60
         cap_score = min(cap_rate, 10) / 10 * 30
         cf_score = 10 if cash_flow > 0 else -10
@@ -2129,7 +2137,6 @@ elif page == "🏘 Property Comparison":
 
         
 
-        # Per‑row delete controls
         st.subheader("🗂 Manage Properties")
         for idx, prop in enumerate(list(st.session_state["comparison_inputs"])):
             c1, c2, c3, c4, c5 = st.columns([4, 2, 2, 2, 1])
@@ -2143,17 +2150,14 @@ elif page == "🏘 Property Comparison":
                 st.caption(f"CF/mo: ${prop.get('Cash Flow', 0):,.0f}")
             with c5:
                 if st.button("🗑", key=f"del_prop_{idx}", help="Delete this property"):
-                    # Remove by index and rerun to refresh table/UI
                     st.session_state["comparison_inputs"].pop(idx)
                     st.rerun()
 
         st.markdown("---")
-        # Clear all
         if st.button("🧹 Clear All Properties"):
             st.session_state["comparison_inputs"] = []
             st.rerun()
 
-        # Exports
         col1, col2 = st.columns(2)
         with col1:
             csv_bytes = export_csv(comparison_df)
@@ -2174,6 +2178,8 @@ elif page == "🏘 Property Comparison":
                 )
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Comparison data is based on your inputs and may not reflect actual outcomes. Use for informational purposes only._", unsafe_allow_html=True)
+
 
 # ─────────────────────────── ADVANCED ANALYTICS ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "🧪 Advanced Analytics":
@@ -2297,6 +2303,8 @@ elif page == "🧪 Advanced Analytics":
     st.download_button("⬇️ Download Yearly ROI Table (CSV)", csv_bytes, "advanced_roi_projection.csv", "text/csv")
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Scenario outputs are simulations based on assumptions. Actual investment outcomes may differ. Not financial advice._", unsafe_allow_html=True)
+
 
 
 
@@ -2390,6 +2398,8 @@ elif page == "📊 Deal Summary Comparison":
                     col.metric(label if cols.index(col) == 0 else "", value)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Rehab and refi estimates are simplified and hypothetical. Consult professionals for accurate planning._", unsafe_allow_html=True)
+
 
 
 #────────────────── Tax Benefits ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2400,12 +2410,11 @@ elif page == "💸 Tax Benefits":
     st.header("💸 Landlord Tax Benefits — Practical Guide")
     st.caption("Educational overview. Not tax advice. Verify with a licensed tax professional and current IRS publications.")
 
-    # ---------- Helpers ----------
     def normalize_text_md(s: str) -> str:
         if not s:
             return s
         s = unicodedata.normalize("NFKC", s)
-        s = re.sub(r"[\u200B-\u200D\uFEFF]", "", s)  # strip zero-width chars
+        s = re.sub(r"[\u200B-\u200D\uFEFF]", "", s)  
         s = s.replace("∗", "*")
         return s
 
@@ -2423,7 +2432,6 @@ elif page == "💸 Tax Benefits":
     def irs_link(label: str, url: str) -> str:
         return f'<a href="{url}" target="_blank">{label}</a>'
 
-    # ---------- IRS links (curated primary sources) ----------
     IRS = {
         "Pub527": ("Publication 527 — Residential Rental Property", "https://www.irs.gov/publications/p527"),
         "Pub925": ("Publication 925 — Passive Activity & At-Risk Rules", "https://www.irs.gov/publications/p925"),
@@ -2441,7 +2449,6 @@ elif page == "💸 Tax Benefits":
         "PMI": ("Mortgage Insurance Premiums (See Instructions)", "https://www.irs.gov/credits-deductions/individuals/mortgage-insurance-premiums"),
     }
 
-    # ---------- Topics data (Title, Body builder) ----------
     def sec_core_writeoffs():
         t = "Core Write‑Offs (Schedule E)"
         b = f"""
@@ -2724,7 +2731,6 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
 """
         return t, b
 
-    # helpers to format callout and link list
     def callout_html(title, body):
         return f"""
 <div style="border-left:4px solid #4ade80; padding:10px 12px; background:#111827; border-radius:8px; margin:8px 0;">
@@ -2737,7 +2743,6 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
         links = [irs_link(IRS[k][0], IRS[k][1]) for k in keys if k in IRS]
         return " • ".join(links)
 
-    # Build the master list of sections
     SECTIONS = [
         sec_core_writeoffs(),
         sec_depreciation(),
@@ -2753,13 +2758,11 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
         sec_sale_gain_recapture(),
     ]
 
-    # ---------- Filters / Search ----------
     st.subheader("Find What You Need Fast")
     left, right = st.columns([2, 1])
     with left:
         query = st.text_input("Search topics or keywords (e.g., “depreciation”, “vehicle”, “QBI”, “loss”):", "").strip().lower()
     with right:
-        # allow quick topic selection
         titles = [t for t, _ in SECTIONS]
         selected = st.multiselect("Show only these topics (optional):", titles, default=[])
 
@@ -2769,7 +2772,6 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
         hay = (title + " " + body).lower()
         return all(word in hay for word in q.split())
 
-    # ---------- Render ----------
     shown = 0
     for title, body in SECTIONS:
         if selected and title not in selected:
@@ -2789,6 +2791,8 @@ When you sell, total gain is affected by **accumulated depreciation** (recapture
 """)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Tax guidance is general and may not apply to your situation. Always consult a tax professional._", unsafe_allow_html=True)
+
 # ─────────────────────────── GLOSSARY ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 elif page == "📖 Help & Info":
     st.markdown("<div class='card'>", unsafe_allow_html=True)
@@ -3064,3 +3068,124 @@ All deal analyses are based on user‑provided inputs (purchase price, rent, exp
         """)
 
     st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_Explanations are simplified for educational clarity and are not a substitute for professional advice._", unsafe_allow_html=True)
+
+
+elif page == "📄 Privacy & Disclaimer":
+    st.markdown("<div class='card'>", unsafe_allow_html=True)
+    st.header("📄 Privacy & Disclaimer")
+    st.markdown("""
+**Last updated:** August 2025
+
+---
+
+### 🔐 Privacy Policy
+
+- RentIntel does **not collect** or store any personal information.
+- All calculations and inputs are handled locally in your browser/session.
+- If you export files (CSV or PDF), they are generated on your device.
+
+### 📬 Contact
+
+Questions? Email us at: [smart-rental-analyzer@outlook.com](mailto:smart-rental-analyzer@outlook.com)
+
+---
+
+### ⚠️ Disclaimer
+
+This application is for **educational and estimation purposes only**.
+
+RentIntel Terms of Use & Privacy Policy
+
+Last Updated: August 2025
+
+1. Terms of Use
+
+A. Overview
+
+RentIntel is a web-based rental property analysis tool designed to provide educational and estimation-based outputs. By accessing or using RentIntel ("Service"), you agree to be bound by these Terms of Use ("Terms"). If you do not agree to these Terms, do not use the Service.
+
+B. No Financial, Legal, or Tax Advice
+
+All outputs generated by RentIntel are for educational and informational purposes only and do not constitute financial, investment, legal, or tax advice. You should consult a licensed professional before making any investment or financial decisions.
+
+We make no guarantees regarding the accuracy, completeness, or suitability of any analysis or recommendation generated by the Service.
+
+C. Use of the Service
+
+You may not use the Service for unlawful purposes or in violation of any laws.
+
+You agree not to reverse-engineer, decompile, or misuse the Service in any way.
+
+The Service is provided "as is" and may change or be discontinued without notice.
+
+D. Limitation of Liability
+
+To the maximum extent permitted by law, RentIntel and its creator(s) are not liable for any direct, indirect, incidental, or consequential damages arising from your use of the Service.
+
+E. Deal Projections and Reports
+
+Outputs including ROI, Cap Rate, Cash Flow, IRR, tax savings, and loan qualification estimates are simulations only and rely on user-provided or assumed inputs. These are not guaranteed results.
+
+2. Privacy Policy
+
+A. Information We Collect
+
+We may collect and store the following types of information:
+
+Deal data (e.g., property price, rent, expenses) you input into the app
+
+Basic analytics (e.g., number of deals analyzed, most-used tools)
+
+Optional contact information (e.g., email, if provided for updates or support)
+
+B. How We Use Your Information
+
+To improve the functionality and performance of the Service
+
+To provide support, updates, or notifications (if you opt-in)
+
+To generate user-specific reports and analysis
+
+C. Data Storage and Security
+
+Your data may be stored locally in your browser or securely on cloud storage (if applicable)
+
+We do not sell, rent, or share your data with third parties
+
+Reasonable efforts are taken to secure and protect your data from unauthorized access
+
+D. Third-Party Services
+
+We may use third-party analytics or hosting providers (e.g., Streamlit Cloud, Google Fonts, or PDF generation libraries). These services may collect anonymized usage data.
+
+E. Cookies & Tracking
+
+RentIntel may use cookies or local storage to save your preferences or analysis sessions. You can disable these in your browser settings.
+
+F. Data Deletion
+
+If you wish to delete your stored deals or data, please contact us at: smart-rental-analyzer@outlook.com
+
+3. Changes to This Policy
+
+We may update these Terms and this Policy periodically. The date at the top reflects the most recent update. Continued use of the Service constitutes your acceptance of any updates.
+
+4. Contact
+
+For questions, support, or legal inquiries, contact:
+Email: smart-rental-analyzer@outlook.com
+
+Thank you for using RentIntel!
+
+---
+
+### 🔧 Future Enhancements
+
+If we introduce user accounts, subscriptions, or analytics in the future, our privacy policy will be updated accordingly.
+    """, unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("_See full Terms of Use and Privacy Policy above. All tools are provided “as-is” with no guarantee of accuracy or results._", unsafe_allow_html=True)
+
+
+    
